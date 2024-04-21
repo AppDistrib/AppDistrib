@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "lib": ["dom", "ES2022"],
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022"
+  },
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,53 @@
+syntax = 'proto3';
+
+package appdistrib;
+
+message GetNextBuildId {}
+
+message BuildId {
+    string id = 1;
+}
+
+message NewBuildHeader {
+    BuildId build_id = 1;
+    uint32 file_size = 2;
+    string filename = 3;
+    string manifest = 4;
+    bool keep = 5;
+}
+
+message NewBuildChunk {
+    bytes data = 1;
+}
+
+message NewBuildFooter {
+    bytes hash = 1;
+}
+
+message NewBuild {
+    oneof info {
+        NewBuildHeader header = 1;
+        NewBuildChunk chunk = 2;
+        NewBuildFooter footer = 3;
+    }
+}
+
+message NewBuildResponseBuildId {
+    BuildId build_id = 1;
+}
+
+message NewBuildResponseKey {
+    string key = 1;
+}
+
+message NewBuildResponse {
+    oneof response {
+        NewBuildResponseBuildId build_id = 1;
+        NewBuildResponseKey key = 2;
+    }
+}
+
+service AppDistrib {
+    rpc GetNextBuildId(GetNextBuildId) returns (BuildId) {}
+    rpc NewBuild(stream NewBuild) returns (stream NewBuildResponse) {}
+}
