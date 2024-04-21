@@ -26,7 +26,7 @@ module.exports = {
       enabled: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
-        defaultValue: true
+        defaultValue: false
       },
       screenName: {
         type: DataTypes.STRING,
