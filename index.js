@@ -4,24 +4,22 @@ const server = require('./src/back/server.js')
 const fs = require('fs-extra')
 const { program } = require('commander')
 
-function main () {
+async function main () {
+  console.log('Server starting')
   program.name('appdistrib').description('AppDistrib server').version('1.0.0')
   program.option(
     '-c, --config <path>',
     'Path to the configuration file.',
     'config.json'
   )
+  program.parse()
 
   const options = program.optsWithGlobals()
-
-  return fs
-    .readFile(options.config, 'utf-8')
-    .then((data) => {
-      return server.main(JSON.parse(data))
-    })
-    .catch(() => {
-      return server.main()
-    })
+  let config = {}
+  try {
+    config = JSON.parse(await fs.readFile(options.config, 'utf-8'))
+  } catch (err) {}
+  await server.main(config)
 }
 
 main()

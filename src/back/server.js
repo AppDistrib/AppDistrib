@@ -156,7 +156,7 @@ class Server {
     const key2 = hexKey.slice(3, 6)
     const key3 = hexKey.slice(6, 9)
     const key4 = hexKey.slice(9)
-    const basePath = path.join('assets', key1, key2, key3, key4)
+    const basePath = path.join('/storage', 'assets', key1, key2, key3, key4)
     const projectPath = path.join(
       this.config.storage.path,
       'manifests',
@@ -171,6 +171,7 @@ class Server {
       id: build.id,
       path: path.join(basePath, build.asset.filename).replace(/\\/g, '/'),
       manifest: build.manifest,
+      size: build.asset.size,
       hashes,
       createdAt
     }

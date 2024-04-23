@@ -2,6 +2,15 @@
 import { useBuildsStore } from '../stores/builds-store'
 
 const builds = useBuildsStore()
+function humanReadableSize(size) {
+  if (size < 1024) {
+    return size + ' bytes'
+  } else if (size < 1024 * 1024) {
+    return (size / 1024).toFixed(2) + ' KB'
+  } else {
+    return (size / 1024 / 1024).toFixed(2) + ' MB'
+  }
+}
 </script>
 
 <script>
@@ -32,8 +41,15 @@ export default {
     <h1>{{ builds.organization.name }} :: {{ builds.project.name }}</h1>
     <div v-for="build in builds.asArray" :key="build.id">
       <div class="surface-card p-4 shadow-2 border-round">
-        <a class="text-3xl font-medium text-900 mb-3 no-underline" :href="build.path" target="_blank">Build {{ build.id }}</a>
-        <div class="font-medium text-500 mb-3">Published {{ build.createdAt }}.</div>
+        <a
+          class="text-3xl font-medium text-900 mb-3 no-underline"
+          :href="build.path"
+          target="_blank"
+          >Build {{ build.id }}</a
+        >
+        <div class="font-medium text-500 mb-3">
+          Published {{ build.createdAt }}, {{ humanReadableSize(build.size) }}
+        </div>
         <div class="border-2 border-dashed surface-border"></div>
       </div>
     </div>

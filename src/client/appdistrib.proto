@@ -36,6 +36,8 @@ message NewBuildResponseBuildId {
     BuildId build_id = 1;
 }
 
+message NewBuildResponseChunkAck {}
+
 message NewBuildResponseKey {
     string key = 1;
 }
@@ -43,7 +45,8 @@ message NewBuildResponseKey {
 message NewBuildResponse {
     oneof response {
         NewBuildResponseBuildId build_id = 1;
-        NewBuildResponseKey key = 2;
+        NewBuildResponseChunkAck chunk_ack = 2;
+        NewBuildResponseKey key = 3;
     }
 }
 

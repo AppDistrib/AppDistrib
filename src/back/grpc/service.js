@@ -156,6 +156,7 @@ exports.setService = async (server) => {
               callData.hashes.sha3.update(payload.chunk.data)
               callData.hashes.key.update(payload.chunk.data)
               callData.tmpFile.write(payload.chunk.data)
+              call.write({ chunkAck: {} })
               break
             }
             case 'footer': {

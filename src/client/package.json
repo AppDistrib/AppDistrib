@@ -1,6 +1,6 @@
 {
   "name": "@appdistrib/cli",
-  "version": "1.0.0",
+  "version": "0.0.3",
   "description": "",
   "main": "index.js",
   "bin": "./index.js",
@@ -8,6 +8,11 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
+  "files": [
+    "index.js",
+    "appdistribCLI.js",
+    "appdistrib.proto"
+  ],
   "license": "MIT",
   "dependencies": {
     "@grpc/grpc-js": "^1.10.3",
