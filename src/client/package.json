@@ -1,6 +1,6 @@
 {
   "name": "@appdistrib/cli",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "",
   "main": "index.js",
   "bin": "./index.js",
@@ -10,7 +10,7 @@
   "author": "",
   "files": [
     "index.js",
-    "appdistribCLI.js",
+    "appdistrib-cli.js",
     "appdistrib.proto"
   ],
   "license": "MIT",

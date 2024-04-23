@@ -67,7 +67,13 @@ exports.setService = async (server) => {
     return buildID
   }
 
-  const grpcServer = new grpc.Server()
+  const keepaliveOptions = {
+    'grpc.keepalive_time_ms': 10_000,
+    'grpc.keepalive_timeout_ms': 1_000,
+    'grpc.keepalive_permit_without_calls': 1
+  }
+
+  const grpcServer = new grpc.Server(keepaliveOptions)
   grpcServer.addService(pkg.appdistrib.AppDistrib.service, {
     GetNextBuildId: async (call, callback) => {
       try {

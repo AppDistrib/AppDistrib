@@ -1,6 +1,6 @@
 'use strict'
 
-function setOptions (options) {
+function setOptions(options) {
   const ret = {
     quiet: false,
     insecure: false,
@@ -54,7 +54,13 @@ function setOptions (options) {
   return ret
 }
 
-async function createGrpcClient (options) {
+async function createGrpcClient(options) {
+  const keepaliveOptions = {
+    'grpc.keepalive_time_ms': 10_000,
+    'grpc.keepalive_timeout_ms': 1_000,
+    'grpc.keepalive_permit_without_calls': 1
+  }
+
   const path = require('node:path')
   const promisify = require('node:util').promisify
   const grpc = require('@grpc/grpc-js')
@@ -68,7 +74,8 @@ async function createGrpcClient (options) {
     `${options.host}:${options.port}`,
     options.insecure
       ? grpc.credentials.createInsecure()
-      : grpc.credentials.createSsl()
+      : grpc.credentials.createSsl(),
+    keepaliveOptions
   )
   const metadata = new grpc.Metadata()
   metadata.add('token', options.token)
@@ -85,7 +92,7 @@ async function createGrpcClient (options) {
   return client
 }
 
-async function main () {
+async function main() {
   const fs = require('fs-extra')
   const { program } = require('commander')
   const cliProgress = require('cli-progress')
@@ -220,7 +227,7 @@ async function main () {
 }
 
 module.exports = {
-  appDistribCLI: function() {
+  appDistribCLI: function () {
     main()
       .then(() => process.exit)
       .catch((err) => {
