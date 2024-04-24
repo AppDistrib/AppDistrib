@@ -26,7 +26,7 @@ export const useBuildsStore = defineStore('builds', {
         this.project = manifest.project
         for (const build of manifest.builds) {
           try {
-            const buildManifest = await api.get(`${this.orgId}/${this.projectId}/manifest-${build.buildId}.json`)
+            const buildManifest = await api.get(`${this.orgId}/${this.projectId}/manifest-${build.id}.json`)
             const createdAt = new Date(buildManifest.createdAt * 1000)
             buildManifest.createdAt = createdAt.toString()
             this.asArray.push(buildManifest)
