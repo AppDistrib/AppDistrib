@@ -173,33 +173,42 @@ async function main() {
         {},
         cliProgress.Presets.shades_classic
       )
-      bar.start(fileSize, 0)
+      bar.start(fileSize, data.length)
       const callData = {}
       call.on('data', async (payload) => {
         switch (payload.response) {
           case 'buildId':
-            callData.buildId = payload.buildId?.buildId?.id
             {
+              callData.buildId = payload.buildId?.buildId?.id
               callData.file = await fs.createReadStream(fileName)
+              callData.chunks = []
               callData.file
                 .on('readable', async () => {
                   const data = await callData.file.read()
                   if (data) {
-                    bar.update((lengthProgress += data.length))
                     hash.update(data)
-                    call.write({ chunk: { data } })
-                    callData.file.pause()
+                    callData.chunks.push(data)
                   }
                 })
                 .on('end', () => {
-                  hash.digestInto(digest)
-                  call.write({ footer: { hash: digest } })
-                  call.end()
+                  const data = callData.chunks.shift()
+                  bar.start(fileSize, data.length)
+                  call.write({ chunk: { data } })
                 })
             }
             break
           case 'chunkAck':
-            callData.file.resume()
+            {
+              const data = callData.chunks.shift()
+              if (data) {
+                bar.update((lengthProgress += data.length))
+                call.write({ chunk: { data } })
+              } else {
+                hash.digestInto(digest)
+                call.write({ footer: { hash: digest } })
+                call.end()
+              }
+            }
             break
           case 'key':
             if (!callData.buildId) {
