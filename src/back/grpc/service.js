@@ -14,6 +14,10 @@ const { sha1 } = require('@noble/hashes/sha1')
 const { sha3_256 } = require('@noble/hashes/sha3')
 const { hmac } = require('@noble/hashes/hmac')
 
+function errorToStatus(err, code = grpc.status.INTERNAL) {
+    return { code, details: JSON.stringify(err, Object.getOwnPropertyNames(err)) }
+}
+
 exports.setService = async (server) => {
   const pkgDefinition = await protoLoader.load(
     path.join(__dirname, '..', '..', 'client', 'appdistrib.proto'),
@@ -88,7 +92,8 @@ exports.setService = async (server) => {
       try {
         await getProjectAndOrganization(call, callData)
       } catch (err) {
-        call.emit('error', err)
+        console.error(err)
+        call.emit('error', errorToStatus(err))
         return
       }
       callData.payloadSize = 0
@@ -105,7 +110,7 @@ exports.setService = async (server) => {
           switch (payload.info) {
             case 'header': {
               if (callData.gotHeader) {
-                call.emit('error', new Error('Header already received'))
+                call.emit('error', errorToStatus(new Error('Header already received'), grpc.status.INVALID_ARGUMENT))
                 break
               }
               callData.gotHeader = true
@@ -119,7 +124,7 @@ exports.setService = async (server) => {
               callData.clientInfo.manifest = JSON.parse(payload.header?.manifest)
               callData.sentBuild = true
               if (callData.clientInfo.filename.split('/').length > 1) {
-                call.emit('error', new Error('Invalid filename'))
+                call.emit('error', errorToStatus(new Error('Invalid filename'), grpc.status.INVALID_ARGUMENT))
                 break
               }
               const build = await server.schemas.getBuild({
@@ -127,7 +132,7 @@ exports.setService = async (server) => {
                 id: callData.clientInfo.buildId
               })
               if (build) {
-                call.emit('error', new Error('Build ID already exists'))
+                call.emit('error', errorToStatus(new Error('Build ID already exists'), grpc.status.INVALID_ARGUMENT))
                 break
               }
               call.write({
@@ -139,20 +144,20 @@ exports.setService = async (server) => {
               if (!callData.gotHeader) {
                 call.emit(
                   'error',
-                  new Error('Received chunk without header first')
+                  errorToStatus(new Error('Received chunk without header first'), grpc.status.INVALID_ARGUMENT)
                 )
                 break
               }
               if (!callData.sentBuild) {
                 call.emit(
                   'error',
-                  new Error('Received chunk without having sent build ID')
+                  errorToStatus(new Error('Received chunk without having sent build ID'), grpc.status.INVALID_ARGUMENT)
                 )
                 break
               }
               callData.gotChunk = true
               if (!Buffer.isBuffer(payload.chunk?.data)) {
-                call.emit('error', new Error('Chunk data not provided'))
+                call.emit('error', errorToStatus(new Error('Chunk data not provided'), grpc.status.INVALID_ARGUMENT))
                 break
               }
               callData.payloadSize += payload.chunk.data.length
@@ -167,11 +172,11 @@ exports.setService = async (server) => {
             }
             case 'footer': {
               if (callData.gotFooter) {
-                call.emit('error', new Error('Footer already received'))
+                call.emit('error', errorToStatus(new Error('Footer already received')), grpc.status.INVALID_ARGUMENT)
                 break
               }
               if (!callData.gotHeader || !callData.gotChunk) {
-                call.emit('error', new Error('Header or chunk not received'))
+                call.emit('error', errorToStatus(new Error('Header or chunk not received')), grpc.status.INVALID_ARGUMENT)
                 break
               }
               callData.gotFooter = true
@@ -186,17 +191,18 @@ exports.setService = async (server) => {
               }
               callData.clientInfo.hash = payload.footer?.hash
               if (!Buffer.isBuffer(callData.clientInfo.hash)) {
-                call.emit('error', new Error('Hash not provided'))
+                call.emit('error', errorToStatus(new Error('Hash not provided'), grpc.status.INVALID_ARGUMENT))
               }
               break
             }
             default: {
-              call.emit('error', new Error('Invalid payload type'))
+              call.emit('error', errorToStatus(new Error('Invalid payload type'), grpc.status.INVALID_ARGUMENT))
               break
             }
           }
         } catch (err) {
-          call.emit('error', err)
+          console.error(err)
+          call.emit('error', errorToStatus(err))
         }
       })
       call.on('end', async () => {
@@ -208,12 +214,12 @@ exports.setService = async (server) => {
           ) {
             call.emit(
               'error',
-              new Error('Header, chunk, or footer not received')
+              errorToStatus(new Error('Header, chunk, or footer not received'), grpc.status.INVALID_ARGUMENT)
             )
           } else if (!callData.clientInfo.hash.equals(callData.hashes.sha3)) {
-            call.emit('error', new Error('Asset hash mismatch'))
+            call.emit('error', errorToStatus(new Error('Asset hash mismatch'), grpc.status.INVALID_ARGUMENT))
           } else if (callData.clientInfo.fileSize !== callData.payloadSize) {
-            call.emit('error', new Error('File size mismatch'))
+            call.emit('error', errorToStatus(new Error('File size mismatch'), grpc.status.INVALID_ARGUMENT))
           } else {
             callData.tmpFile.end()
             const tmpPath = callData.tmpFile.path
@@ -241,7 +247,8 @@ exports.setService = async (server) => {
             call.end()
           }
         } catch (err) {
-          call.emit('error', err)
+          console.error(err)
+          call.emit('error', errorToStatus(err))
         }
       })
       call.on('cancelled', () => {
@@ -251,7 +258,8 @@ exports.setService = async (server) => {
             fs.remove(callData.tmpFile.path)
           }
         } catch (err) {
-          call.emit('error', err)
+          console.error(err)
+          call.emit('error', errorToStatus(err))
         }
       })
     }
