@@ -173,7 +173,7 @@ async function main() {
         {},
         cliProgress.Presets.shades_classic
       )
-      bar.start(fileSize, data.length)
+      bar.start(fileSize, 0)
       const callData = {}
       call.on('data', async (payload) => {
         switch (payload.response) {
@@ -186,13 +186,15 @@ async function main() {
                 .on('readable', async () => {
                   const data = await callData.file.read()
                   if (data) {
+                    bar.update((lengthProgress += data.length))
                     hash.update(data)
                     callData.chunks.push(data)
                   }
                 })
                 .on('end', () => {
                   const data = callData.chunks.shift()
-                  bar.start(fileSize, data.length)
+                  lengthProgress = data.length
+                  bar.update(data.length)
                   call.write({ chunk: { data } })
                 })
             }

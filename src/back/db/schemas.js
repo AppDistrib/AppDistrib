@@ -142,8 +142,12 @@ module.exports = class Schemas {
 
     const Build = sequelize.define('build', {
       id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         primaryKey: true
+      },
+      buildId: {
+        type: DataTypes.INTEGER,
+        allowNull: false
       },
       description: {
         type: DataTypes.TEXT
@@ -254,7 +258,7 @@ module.exports = class Schemas {
     }
   }
 
-  async addProviderAccountToUser (user, account) {
+  async addProviderAccountToUser ({ user, account }) {
     const providerId = `${account.provider}#${account.id}`
     const userId = user.dataValues.id
     const result = await this.ProvidedAuth.findAll({
@@ -317,7 +321,7 @@ module.exports = class Schemas {
   async findProject ({ id, organization }) {
     const result = await this.Project.findAll({
       where: {
-        id: id + ':' + organization.id,
+        id: organization.id + ':' + id,
         organizationId: organization.id
       }
     })
@@ -335,7 +339,7 @@ module.exports = class Schemas {
   async createProject ({ id, name, organization }) {
     const key = base85.encode(secureRandom.randomBuffer(32))
     return this.Project.create({
-      id: id + ':' + organization.id,
+      id: organization.id + ':' + id,
       name,
       key,
       organizationId: organization.id
@@ -414,17 +418,14 @@ module.exports = class Schemas {
       order: [['id', 'DESC']],
       limit: 1
     })
-    return result.length === 0 ? 1 : result[0].id + 1
+    return result.length === 0 ? 1 : result[0].buildId + 1
   }
 
   async getBuild ({ project, id }) {
-    const result = await this.Build.findAll({
-      where: {
-        id,
-        projectId: project.id
-      }
+    const result = await this.Build.findByPk(project.id + ':' + id, {
+      include: { model: this.Asset }
     })
-    return result.length === 1 ? result[0] : false
+    return result
   }
 
   async listBuilds (project) {
@@ -449,7 +450,6 @@ module.exports = class Schemas {
     size
   }) {
     assetId = assetId.toString('hex')
-    const t = await this.db.sequelize.transaction()
     await this.Asset.findOrCreate({
       where: {
         id: assetId
@@ -463,17 +463,17 @@ module.exports = class Schemas {
       }
     })
     await this.Build.create({
-      id,
+      id: project.id + ':' + id,
+      buildId: id,
       description,
       manifest,
       keep,
       projectId: project.id,
       assetId
     })
-    const newBuild = await this.Build.findByPk(id, {
+    const newBuild = await this.Build.findByPk(project.id + ':' + id, {
       include: { model: this.Asset }
     })
-    await t.commit()
 
     const ephemeralBuilds = await this.Build.findAll({
       where: {

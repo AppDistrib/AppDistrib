@@ -23,7 +23,7 @@ exports.setRoutes = async (server) => {
           Object.keys(project.dataValues).forEach(key => {
             let value = project.dataValues[key]
             if (key === 'key') return
-            if (key === 'id') value = value.split(':')[0]
+            if (key === 'id') value = value.split(':')[1]
             element[key] = value
           })
           results.push(element)

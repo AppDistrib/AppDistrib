@@ -13,5 +13,5 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src/front', import.meta.url))
     }
   },
-  build: { sourcemap: true, minify: false }
+  build: { sourcemap: true, minify: true }
 })

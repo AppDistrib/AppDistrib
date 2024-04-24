@@ -170,7 +170,7 @@ class Server {
       hashes[hash] = Buffer.from(hashes[hash]).toString('hex')
     }
     const manifest = {
-      id: build.id,
+      id: build.buildId,
       path: path.join(basePath, build.asset.filename).replace(/\\/g, '/'),
       manifest: build.manifest,
       size: build.asset.size,
@@ -179,7 +179,7 @@ class Server {
     }
     await fs.ensureDir(projectPath)
     await fs.writeFile(
-      path.join(projectPath, `manifest-${build.id}.json`),
+      path.join(projectPath, `manifest-${build.buildId}.json`),
       JSON.stringify(manifest, null, 2)
     )
   }
@@ -204,7 +204,7 @@ class Server {
       }
       const createdAt = Math.floor(build.createdAt.getTime() / 1000)
       manifest.builds.push({
-        id: build.id,
+        id: build.buildId,
         createdAt
       })
     }

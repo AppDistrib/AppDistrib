@@ -149,8 +149,12 @@ module.exports = {
 
     const Build = sequelize.define('build', {
       id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         primaryKey: true
+      },
+      buildId: {
+        type: DataTypes.INTEGER,
+        allowNull: false
       },
       description: {
         type: DataTypes.TEXT
