@@ -113,6 +113,8 @@ class Server {
     }
     await fs.remove(path.join(destPath, filename))
     await fs.ensureLink(destBin, path.join(destPath, filename))
+    await fs.chmod(destBin, 0o644)
+    await fs.chmod(path.join(destPath, filename), 0o644)
   }
 
   async deleteAsset (key, filename) {
