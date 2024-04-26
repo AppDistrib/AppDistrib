@@ -19,6 +19,38 @@ exports.setRoutes = async (server) => {
     '/pub/org/:orgId/project/:projectId'
   ]
   routes.map((route) => server.app.get(route, sendRoot))
+  server.app.get('/pub/org/:orgId/project/:projectId/latest', async (req, res) => {
+    try {
+      const org = await server.schemas.findOrganization(req.params.orgId)
+      if (!org) {
+        res.status(404).json({ error: 'Organization not found' })
+        return
+      }
+      const project = await server.schemas.findProject({
+        id: req.params.projectId,
+        organization: org
+      })
+      if (!project) {
+        res.status(404).json({ error: 'Project not found' })
+        return
+      }
+      const build = await server.schemas.getLastBuild(project)
+      if (!build.asset) {
+        res.status(404).json({ error: 'Build has no asset' })
+        return
+      }
+      const key = Buffer.from(build.asset.id, 'hex')
+      const hexKey = key.toString('hex')
+      const key1 = hexKey.slice(0, 3)
+      const key2 = hexKey.slice(3, 6)
+      const key3 = hexKey.slice(6, 9)
+      const key4 = hexKey.slice(9)
+      const basePath = path.join('/storage', 'assets', key1, key2, key3, key4)
+      res.redirect(path.join(basePath, build.asset.filename).replace(/\\/g, '/'))
+    } catch(err) {
+        res.status(500).json({ error: err.toString() })
+    }
+  })
 
   return []
 }

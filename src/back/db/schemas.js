@@ -422,6 +422,18 @@ module.exports = class Schemas {
     return result.length === 0 ? 1 : result[0].buildId + 1
   }
 
+  async getLastBuild (project) {
+    const result = await this.Build.findAll({
+      where: {
+        projectId: project.id
+      },
+      order: [['id', 'DESC']],
+      limit: 1,
+      include: { model: this.Asset }
+    })
+    return result.length !== 0 ? result[0] : false;
+  }
+
   async getBuild ({ project, id }) {
     const result = await this.Build.findByPk(project.id + ':' + id, {
       include: { model: this.Asset }
