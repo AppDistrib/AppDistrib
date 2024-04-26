@@ -146,8 +146,13 @@ class Server {
     )
     await fs.remove(destBin)
     await fs.remove(path.join(destPath, filename))
-    await fs.remove(path.join(destPath, 'manifest.json'))
     await fs.remove(destPath)
+  }
+
+  async deleteBuildFiles (build, project) {
+    const projectFragment = project.id.replace(/:/g, '/')
+    await fs.remove(path.join(this.config.storage.path, 'manifests', projectFragment), `manifest-${build.buildId}.json`)
+    await fs.remove(path.join(this.config.storage.path, 'changelogs', projectFragment), `changelog-${build.buildId}.md`)
   }
 
   async generateBuildManifest (build, project) {
@@ -244,7 +249,7 @@ class Server {
       await fs.remove(this.config.storage.path)
     }
     await db.initialize()
-    this.schemas = new Schemas(db)
+    this.schemas = new Schemas(db, this)
 
     cron.schedule('*/5 * * * *', async () => {
       const assetsToDelete = await this.schemas.findSomeOrphanAssets()

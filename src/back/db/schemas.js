@@ -7,8 +7,9 @@ const { sha3_256 } = require('@noble/hashes/sha3')
 const { hmac } = require('@noble/hashes/hmac')
 
 module.exports = class Schemas {
-  constructor (db) {
+  constructor (db, server) {
     this.db = db
+    this.server = server
     const sequelize = db.sequelize
     const User = sequelize.define('user', {
       id: {
@@ -489,6 +490,7 @@ module.exports = class Schemas {
         ephemeralBuilds.length - project.historical
       )
       for (const build of toDelete) {
+        await this.server.deleteBuildFiles(build, project)
         await build.destroy()
       }
     }
