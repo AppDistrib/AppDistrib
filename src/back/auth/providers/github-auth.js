@@ -13,14 +13,15 @@ exports.register = async (passport, schemas, config) => {
           clientID: config.providers.githubAuth.clientID,
           clientSecret: config.providers.githubAuth.clientSecret,
           callbackURL: config.webServer.baseURL.concat(
-            '/api/v1/auth/github/callback')
+            '/api/v1/auth/github/callback'
+          )
         },
         (tokenset, refreshToken, userinfo, done) => {
           const user = {
             provider: 'github',
             id: userinfo.id,
             avatarURL: userinfo.photos[0].value,
-            screenName: userinfo.displayName
+            screenName: userinfo.displayName || userinfo.username
           }
           dbCallback(user)
             .then((user) => done(null, user))
