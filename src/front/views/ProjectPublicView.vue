@@ -45,7 +45,8 @@ export default {
           class="text-3xl font-medium text-900 mb-3 no-underline"
           :href="build.path"
           target="_blank"
-          >Build {{ build.id }}</a
+          >
+          <i class="pi pi-download mr-3" style="font-size: 1.5rem"></i>Build {{ build.id }}</a
         >
         <div class="font-medium text-500 mb-3">
           Published {{ build.createdAt }}, {{ humanReadableSize(build.size) }}
