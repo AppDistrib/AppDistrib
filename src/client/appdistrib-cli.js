@@ -50,6 +50,9 @@ function setOptions(options) {
   if (options.manifest !== undefined) {
     ret.manifest = options.manifest
   }
+  if (options.changelog !== undefined) {
+    ret.changelog = options.changelog
+  }
 
   return ret
 }
@@ -131,6 +134,9 @@ async function main() {
       'The manifest file to attach to the build.'
     )
     .option('-k, --keep', 'Flag the build to be kept forever.')
+    .option('-c, --changelog <file>'
+      'The changelog file in markdown format to attach to the build.'
+    )
 
   program
     .command('buildid')
@@ -159,6 +165,10 @@ async function main() {
       if (options.manifest) {
         manifest = await fs.readJson(options.manifest)
       }
+      let changelog = null
+      if (options.changelog) {
+        changelog = await fs.readFile(options.changelog)
+      }
       const call = client.NewBuild()
       call.write({
         header: {
@@ -166,7 +176,8 @@ async function main() {
           keep: options.keep,
           fileSize,
           filename: path.basename(fileName),
-          manifest: JSON.stringify(manifest)
+          manifest: JSON.stringify(manifest),
+          changelog
         }
       })
       const bar = new cliProgress.SingleBar(

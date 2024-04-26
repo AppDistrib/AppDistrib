@@ -130,6 +130,7 @@ exports.setService = async (server) => {
               callData.clientInfo.manifest = JSON.parse(
                 payload.header?.manifest
               )
+              callData.clientInfo.changelog = payload.header?.changelog
               callData.sentBuild = true
               if (callData.clientInfo.filename.split('/').length > 1) {
                 call.emit(
@@ -307,6 +308,7 @@ exports.setService = async (server) => {
               keep: callData.clientInfo.keep
             })
             await server.generateBuildManifest(newBuild, callData.project)
+            await server.generateBuildChangelog(newBuild, callData.project, callData.changelog)
             await server.generateProjectManifest(
               callData.project,
               callData.organization

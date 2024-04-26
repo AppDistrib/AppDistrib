@@ -189,6 +189,20 @@ class Server {
     )
   }
 
+  async generateBuildChangelog (build, project, changelog) {
+    if (!changelog) return
+    const projectPath = path.join(
+      this.config.storage.path,
+      'changelogs',
+      project.id.replace(/:/g, '/')
+    )
+    await fs.ensureDir(projectPath)
+    await fs.writeFile(
+      path.join(projectPath, `changelog-${build.buildId}.md`),
+      changelog
+    )
+  }
+
   async generateProjectManifest (project, organization) {
     const builds = await this.schemas.listBuilds(project)
     const manifest = {
