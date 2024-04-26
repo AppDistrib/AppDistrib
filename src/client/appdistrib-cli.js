@@ -134,7 +134,8 @@ async function main() {
       'The manifest file to attach to the build.'
     )
     .option('-k, --keep', 'Flag the build to be kept forever.')
-    .option('-c, --changelog <file>'
+    .option(
+      '-c, --changelog <file>',
       'The changelog file in markdown format to attach to the build.'
     )
 

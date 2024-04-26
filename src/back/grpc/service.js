@@ -308,7 +308,11 @@ exports.setService = async (server) => {
               keep: callData.clientInfo.keep
             })
             await server.generateBuildManifest(newBuild, callData.project)
-            await server.generateBuildChangelog(newBuild, callData.project, callData.changelog)
+            await server.generateBuildChangelog(
+              newBuild,
+              callData.project,
+              callData.clientInfo.changelog
+            )
             await server.generateProjectManifest(
               callData.project,
               callData.organization

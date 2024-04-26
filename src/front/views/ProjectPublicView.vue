@@ -1,5 +1,8 @@
 <script setup>
 import { useBuildsStore } from '../stores/builds-store'
+import MarkdownIt from 'markdown-it'
+
+const markdown = new MarkdownIt()
 
 const builds = useBuildsStore()
 function humanReadableSize(size) {
@@ -45,13 +48,17 @@ export default {
           class="text-3xl font-medium text-900 mb-3 no-underline"
           :href="build.path"
           target="_blank"
-          >
-          <i class="pi pi-download mr-3" style="font-size: 1.5rem"></i>Build {{ build.id }}</a
+        >
+          <i class="pi pi-download mr-3" style="font-size: 1.5rem"></i>Build
+          {{ build.id }}</a
         >
         <div class="font-medium text-500 mb-3">
           Published {{ build.createdAt }}, {{ humanReadableSize(build.size) }}
         </div>
-        <div class="border-2 border-dashed surface-border"></div>
+        <div
+          class="border-2 border-dashed surface-border"
+          v-html="markdown.render(build.changelog)"
+        ></div>
       </div>
     </div>
   </div>
