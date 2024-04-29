@@ -1,6 +1,7 @@
 <script setup>
 import { useBuildsStore } from '../stores/builds-store'
 import MarkdownIt from 'markdown-it'
+import path from 'path'
 
 const markdown = new MarkdownIt()
 
@@ -50,7 +51,7 @@ export default {
           target="_blank"
         >
           <i class="pi pi-download mr-3" style="font-size: 1.5rem"></i>Build
-          {{ build.id }}</a
+          {{ build.id }} :: {{ path.basename(build.path) }}</a
         >
         <div class="font-medium text-500 mb-3">
           Published {{ build.createdAt }}, {{ humanReadableSize(build.size) }}
