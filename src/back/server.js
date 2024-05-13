@@ -279,7 +279,7 @@ class Server {
 
     return [
       new Promise((resolve, reject) => {
-        this.app.listen(this.config.webServer.port, () => {
+        this.app.listen(this.config.webServer.port, this.config.webServer.host || '0.0.0.0', () => {
           resolve()
         })
       })
