@@ -1,5 +1,5 @@
 <template>
-  <div class="about">
+  <div class="surface-card p-4 shadow-2 border-round about">
     <h1>What is this?</h1>
     With Microsoft shutting down AppCenter, I needed a replacement for my
     personal projects. I wanted something that was self-hosted, and had a good
