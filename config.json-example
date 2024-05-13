@@ -1,0 +1,29 @@
+{
+    "secretKey": "someGlobalSeed",
+    "providers": {
+        "githubAuth": {
+            "clientID": "githubAuthClientID",
+            "clientSecret": "githubAuthSecret"
+        },
+        "googleAuth": {
+            "clientID": "googleAuthClientID",
+            "clientSecret": "googleAuthSecret"
+        }
+    },
+    "pgConfig": {
+        "user": "appdistrib",
+        "password": "postgres password",
+        "host": "localhost",
+        "port": 5432,
+        "database": "appdistrib"
+    },
+    "storage": {
+        "secretKey": "anotherSeed"
+    },
+    "webServer": {
+        "baseURL": "https://distrib.app",
+        "host": "127.0.0.1",
+        "port": 8080,
+        "secret": "theSeedForSessionCookies"
+    }
+}
