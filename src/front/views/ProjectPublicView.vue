@@ -56,10 +56,33 @@ export default {
         <div class="font-medium text-500 mb-3">
           Published {{ build.createdAt }}, {{ humanReadableSize(build.size) }}
         </div>
-        <div
-          class="border-2 border-dashed surface-border"
-          v-html="markdown.render(build.changelog)"
-        ></div>
+        <Accordion :activeIndex="1">
+          <AccordionTab header="Checksums">
+            <table>
+              <tr>
+                <td><div class="mr-3">CRC32</div></td>
+                <td>{{ build.hashes.crc32 }}</td>
+              </tr>
+              <tr>
+                <td><div class="mr-3">MD5</div></td>
+                <td>{{ build.hashes.md5 }}</td>
+              </tr>
+              <tr>
+                <td><div class="mr-3">SHA1</div></td>
+                <td>{{ build.hashes.sha1 }}</td>
+              </tr>
+              <tr>
+                <td><div class="mr-3">SHA3</div></td>
+                <td>{{ build.hashes.sha3 }}</td>
+              </tr>
+            </table>
+          </AccordionTab>
+        </Accordion>
+        <Accordion :activeIndex="1">
+          <AccordionTab header="Changelog">
+            <div v-html="markdown.render(build.changelog)"></div>
+          </AccordionTab>
+        </Accordion>
       </div>
     </div>
   </div>
