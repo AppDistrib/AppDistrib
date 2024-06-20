@@ -78,7 +78,7 @@ export default {
             </table>
           </AccordionTab>
         </Accordion>
-        <Accordion :activeIndex="1">
+        <Accordion v-if="build.changelog.length!=0" :activeIndex="1">
           <AccordionTab header="Changelog">
             <div v-html="markdown.render(build.changelog)"></div>
           </AccordionTab>
