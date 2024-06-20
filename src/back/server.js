@@ -12,8 +12,6 @@ const expressStatusMonitor = require('express-status-monitor')
 
 const cron = require('node-cron')
 
-const base85 = require('base85')
-
 const database = require('./db/db.js')
 const Schemas = require('./db/schemas.js')
 
