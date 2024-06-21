@@ -416,7 +416,7 @@ module.exports = class Schemas {
       where: {
         projectId: project.id
       },
-      order: [['id', 'DESC']],
+      order: [['buildId', 'DESC']],
       limit: 1
     })
     return result.length === 0 ? 1 : result[0].buildId + 1
@@ -427,11 +427,11 @@ module.exports = class Schemas {
       where: {
         projectId: project.id
       },
-      order: [['id', 'DESC']],
+      order: [['buildId', 'DESC']],
       limit: 1,
       include: { model: this.Asset }
     })
-    return result.length !== 0 ? result[0] : false;
+    return result.length !== 0 ? result[0] : false
   }
 
   async getBuild ({ project, id }) {
