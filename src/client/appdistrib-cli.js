@@ -164,7 +164,7 @@ async function main () {
       const fileSize = (await fs.stat(fileName)).size
       let manifest = null
       if (options.manifest) {
-        manifest = await fs.readJson(options.manifest)
+        manifest = await fs.readFile(options.manifest)
       }
       let changelog = null
       if (options.changelog) {
@@ -177,7 +177,7 @@ async function main () {
           keep: options.keep,
           fileSize,
           filename: path.basename(fileName),
-          manifest: JSON.stringify(manifest),
+          manifest: manifest,
           changelog
         }
       })
