@@ -43,11 +43,16 @@ message NewBuildResponseKey {
     string key = 1;
 }
 
+message NewBuildResponseManifest {
+    string manifest = 1;
+}
+
 message NewBuildResponse {
     oneof response {
         NewBuildResponseBuildId build_id = 1;
         NewBuildResponseChunkAck chunk_ack = 2;
         NewBuildResponseKey key = 3;
+        NewBuildResponseManifest manifest = 4;
     }
 }
 

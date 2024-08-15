@@ -1,6 +1,6 @@
 'use strict'
 
-function setOptions(options) {
+function setOptions (options) {
   const ret = {
     quiet: false,
     insecure: false,
@@ -57,7 +57,7 @@ function setOptions(options) {
   return ret
 }
 
-async function createGrpcClient(options) {
+async function createGrpcClient (options) {
   const keepaliveOptions = {
     'grpc.keepalive_time_ms': 10_000,
     'grpc.keepalive_timeout_ms': 1_000,
@@ -95,7 +95,7 @@ async function createGrpcClient(options) {
   return client
 }
 
-async function main() {
+async function main () {
   const fs = require('fs-extra')
   const { program } = require('commander')
   const cliProgress = require('cli-progress')
@@ -211,6 +211,9 @@ async function main() {
                 })
             }
             break
+          case 'manifest':
+            callData.manifest = JSON.parse(payload.manifest?.manifest)
+            break
           case 'chunkAck':
             {
               const data = callData.chunks.shift()
@@ -230,6 +233,9 @@ async function main() {
             }
             callData.key = payload.key?.key
             bar.stop()
+            if (options.manifest && callData.manifest) {
+              await fs.writeJson(options.manifest, callData.manifest, { spaces: 2 })
+            }
             console.log(
               'Upload of file %s has completed successfully.\nHash: %s\nKey: %s\nServer is publishing build %s.',
               path.basename(fileName),
