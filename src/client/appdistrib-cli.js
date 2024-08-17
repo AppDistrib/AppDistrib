@@ -8,6 +8,10 @@ function setOptions (options) {
     port: 443
   }
 
+  if ((options.lookup !== undefined) && (options.buildid !== undefined)) {
+    throw new Error('Cannot provide both a lookup key and a build ID')
+  }
+
   if (options.quiet !== undefined) {
     ret.quiet = options.quiet
   }
@@ -133,6 +137,10 @@ async function main () {
       '-m, --manifest <file>',
       'The manifest file to attach to the build.'
     )
+    .option(
+      '-l', '--lookup <key>',
+      'The key to use to look up a build in the provided manifest file.'
+    )
     .option('-k, --keep', 'Flag the build to be kept forever.')
     .option(
       '-c, --changelog <file>',
@@ -164,7 +172,10 @@ async function main () {
       const fileSize = (await fs.stat(fileName)).size
       let manifest = null
       if (options.manifest) {
-        manifest = await fs.readFile(options.manifest)
+        manifest = await fs.readJson(options.manifest)
+        if (options.lookup) {
+          options.buildid = manifest[options.lookup]
+        }
       }
       let changelog = null
       if (options.changelog) {
@@ -177,7 +188,7 @@ async function main () {
           keep: options.keep,
           fileSize,
           filename: path.basename(fileName),
-          manifest,
+          manifest: JSON.stringify(manifest),
           changelog
         }
       })
