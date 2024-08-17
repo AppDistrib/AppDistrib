@@ -1,6 +1,6 @@
 {
   "name": "appdistrib",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "prettier": "prettier-config-standard",
   "scripts": {
@@ -30,7 +30,6 @@
     "markdown-it": "^14.1.0",
     "md5.js": "^1.3.5",
     "mime-types": "^2.1.35",
-    "mustache": "^4.2.0",
     "nanoid": "^5.0.6",
     "node-cron": "^3.0.3",
     "openid-client": "^5.6.5",

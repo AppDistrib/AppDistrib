@@ -146,7 +146,7 @@ async function main () {
       const options = setOptions(program.optsWithGlobals())
       const client = await createGrpcClient(options)
       const buildid = await client.GetNextBuildId()
-      console.log({ buildid: buildid.id })
+      console.log(JSON.stringify({ buildid: buildid.id }))
     })
 
   program
@@ -177,7 +177,7 @@ async function main () {
           keep: options.keep,
           fileSize,
           filename: path.basename(fileName),
-          manifest: manifest,
+          manifest,
           changelog
         }
       })
@@ -211,9 +211,6 @@ async function main () {
                 })
             }
             break
-          case 'manifest':
-            callData.manifest = JSON.parse(payload.manifest?.manifest)
-            break
           case 'chunkAck':
             {
               const data = callData.chunks.shift()
@@ -233,9 +230,6 @@ async function main () {
             }
             callData.key = payload.key?.key
             bar.stop()
-            if (options.manifest && callData.manifest) {
-              await fs.writeJson(options.manifest, callData.manifest, { spaces: 2 })
-            }
             console.log(
               'Upload of file %s has completed successfully.\nHash: %s\nKey: %s\nServer is publishing build %s.',
               path.basename(fileName),

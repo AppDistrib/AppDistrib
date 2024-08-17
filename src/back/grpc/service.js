@@ -14,8 +14,6 @@ const { sha1 } = require('@noble/hashes/sha1')
 const { sha3_256 } = require('@noble/hashes/sha3')
 const { hmac } = require('@noble/hashes/hmac')
 
-const Mustache = require('mustache')
-
 function errorToStatus (err, code = grpc.status.INTERNAL) {
   return { code, details: JSON.stringify(err, Object.getOwnPropertyNames(err)) }
 }
@@ -129,11 +127,8 @@ exports.setService = async (server) => {
               callData.clientInfo.fileSize = payload.header?.fileSize
               callData.clientInfo.keep = payload.header?.keep
               callData.clientInfo.filename = payload.header?.filename
-              const manifestString = payload.header?.manifest || '{}'
               callData.clientInfo.manifest = JSON.parse(
-                Mustache.render(manifestString, {
-                  buildId: callData.clientInfo.buildId
-                })
+                payload.header?.manifest
               )
               callData.clientInfo.changelog = payload.header?.changelog
               callData.sentBuild = true
@@ -163,11 +158,6 @@ exports.setService = async (server) => {
               }
               call.write({
                 buildId: { buildId: { id: callData.clientInfo.buildId } }
-              })
-              call.write({
-                manifest: {
-                  manifest: JSON.stringify(callData.clientInfo.manifest)
-                }
               })
               break
             }
