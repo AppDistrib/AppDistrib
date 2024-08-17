@@ -52,6 +52,9 @@ function setOptions (options) {
     ret.buildid = options.buildid
   }
   if (options.manifest !== undefined) {
+    if (options.lookup !== undefined) {
+      ret.lookup = options.lookup
+    }
     ret.manifest = options.manifest
   }
   if (options.changelog !== undefined) {
@@ -138,7 +141,7 @@ async function main () {
       'The manifest file to attach to the build.'
     )
     .option(
-      '-l', '--lookup <key>',
+      '-l, --lookup <key>',
       'The key to use to look up a build in the provided manifest file.'
     )
     .option('-k, --keep', 'Flag the build to be kept forever.')
