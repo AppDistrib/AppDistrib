@@ -19,9 +19,6 @@ function setOptions (options) {
   if (ret.token === undefined) {
     ret.token = process.env.APPDISTRIB_TOKEN
   }
-  if (ret.token === undefined) {
-    throw new Error('No project token provided')
-  }
   ret.project = options.project
   if (ret.project === undefined) {
     ret.project = process.env.APPDISTRIB_PROJECT
@@ -88,7 +85,9 @@ async function createGrpcClient (options) {
     keepaliveOptions
   )
   const metadata = new grpc.Metadata()
-  metadata.add('token', options.token)
+  if (options.token) {
+    metadata.add('token', options.token)
+  }
   metadata.add('project', options.project)
   metadata.add('organization', options.organization)
   const origGetNextBuildId = client.GetNextBuildId

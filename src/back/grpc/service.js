@@ -30,16 +30,15 @@ exports.setService = async (server) => {
       return callData.project
     }
     const tokenArray = call.metadata.get('token')
+    const hasOneToken = tokenArray.length === 1
+    const hasZeroOrOneToken = tokenArray.length <= 1
     const organizationIDArray = call.metadata.get('organization')
+    const hasOneOrganization = organizationIDArray.length === 1
     const projectIdArray = call.metadata.get('project')
-    if (
-      tokenArray.length !== 1 ||
-      organizationIDArray.length !== 1 ||
-      projectIdArray.length !== 1
-    ) {
+    const hasOneProject = projectIdArray.length === 1
+    if (!hasZeroOrOneToken || !hasOneOrganization || !hasOneProject) {
       throw new Error('Missing or incorrect metadata')
     }
-    const token = tokenArray[0]
     const organizationID = organizationIDArray[0]
     const projectId = projectIdArray[0]
     const organization = await server.schemas.findOrganization(organizationID)
@@ -53,13 +52,13 @@ exports.setService = async (server) => {
     if (!project) {
       throw new Error('Project not found')
     }
-    const tokenValid = await server.schemas.validateProjectFromToken({
-      secretKey: server.config.secretKey,
-      token,
-      project
-    })
-    if (!tokenValid) {
-      throw new Error('Invalid or expired token')
+    callData.tokenValid = false
+    if (hasOneToken) {
+      callData.tokenValid = await server.schemas.validateProjectFromToken({
+        secretKey: server.config.secretKey,
+        token: tokenArray[0],
+        project
+      })
     }
     callData.organization = organization
     callData.project = project
@@ -87,13 +86,19 @@ exports.setService = async (server) => {
       }
     },
     NewBuild: async (call) => {
-      let project
       const callData = {}
       try {
         await getProjectAndOrganization(call, callData)
       } catch (err) {
         console.error(err)
         call.emit('error', errorToStatus(err))
+        return
+      }
+      if (!callData.tokenValid) {
+        call.emit(
+          'error',
+          errorToStatus(new Error('Invalid token'), grpc.status.UNAUTHENTICATED)
+        )
         return
       }
       callData.payloadSize = 0
