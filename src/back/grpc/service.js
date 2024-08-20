@@ -25,6 +25,9 @@ exports.setService = async (server) => {
   )
   const pkg = grpc.loadPackageDefinition(pkgDefinition)
 
+  // A helper, designed to cache the results of the organization and project
+  // lookup, and to validate the token if it is provided. Not having a valid
+  // token is not an error, as some requests may not require one.
   async function getProjectAndOrganization (call, callData) {
     if (callData.project) {
       return callData.project
@@ -64,6 +67,7 @@ exports.setService = async (server) => {
     callData.project = project
   }
 
+  // A helper, designed to get the next build ID for a project.
   async function getNextBuildId (call, callData = {}) {
     await getProjectAndOrganization(call, callData)
     const buildID = await server.schemas.getNextBuildId(callData.project)
@@ -76,8 +80,12 @@ exports.setService = async (server) => {
     'grpc.keepalive_permit_without_calls': 1
   }
 
+  // The actual gRPC server, with the implementation of our three methods:
+  // GetNextBuildId, NewBuild and GenerateManifestsForProject.
   const grpcServer = new grpc.Server(keepaliveOptions)
   grpcServer.addService(pkg.appdistrib.AppDistrib.service, {
+    // The GetNextBuildId method returns the next build ID for a project. It
+    // doesn't require a token, as it only reads public data.
     GetNextBuildId: async (call, callback) => {
       try {
         callback(null, { id: await getNextBuildId(call) })
@@ -85,6 +93,8 @@ exports.setService = async (server) => {
         callback(err)
       }
     },
+    // The NewBuild method is used to upload a new build to the server. It
+    // requires a token, since it modifies data.
     NewBuild: async (call) => {
       const callData = {}
       try {

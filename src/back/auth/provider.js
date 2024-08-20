@@ -1,5 +1,9 @@
 'use strict'
 
+// The class is a generic mechanism to handle any sort
+// of auth provider. The auth providers need to use it
+// in order to provide a sane interface to the rest
+// of our application.
 class Provider {
   constructor (name, create, connect, urlFragment) {
     this.name = name

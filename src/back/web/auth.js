@@ -26,6 +26,7 @@ const builtInAuthProviders = [
 exports.setRoutes = async (server) => {
   const providers = []
 
+  // Setting up expressSession to use our postgres database.
   const pgPool = new pg.Pool(server.config.pgConfig)
   server.app.use(
     expressSession({
@@ -41,6 +42,7 @@ exports.setRoutes = async (server) => {
   server.app.use(passport.initialize())
   server.app.use(passport.session())
 
+  // These two are needed by passport.
   passport.serializeUser((user, done) =>
     server.schemas
       .serializeUser(user)
@@ -55,6 +57,11 @@ exports.setRoutes = async (server) => {
       .catch((err) => done(err, false))
   )
 
+  // This is a helper we can use in the rest of the web server
+  // to indicate endpoints which require authentification. This will
+  // automatically redirect the user around to the right URLs. The
+  // `forAPI` parameter is used to return a json error instead of
+  // redirecting the user to the login page.
   server.authenticationFilter = ({ returnURL = null, forAPI = false } = {}) => {
     return (req, res, next) => {
       if (req.isAuthenticated()) return next()
@@ -67,7 +74,11 @@ exports.setRoutes = async (server) => {
     }
   }
 
+  // The factory, able to inject the various endpoints the authentication
+  // system will use for a given authentication provider.
   function registerProvider (provider) {
+    // The /login endpoint should be hit when the user wants to use a given
+    // auth provider to log in.
     server.app.get(`/api/v1/auth/${provider.urlFragment}/login`, (req, res, next) => {
       try {
         if (req.isAuthenticated()) res.redirect('/render/profile')
@@ -76,6 +87,8 @@ exports.setRoutes = async (server) => {
         res.status(500).json({ error: err.toString() })
       }
     })
+    // The /connect endpoint is used when the user wants to connect multiple
+    // authentication providers to their account.
     server.app.get(
       `/api/v1/auth/${provider.urlFragment}/connect`,
       server.authenticationFilter(),
@@ -95,6 +108,8 @@ exports.setRoutes = async (server) => {
       }
       return returnURL
     }
+    // The /callback endpoint is used by each authentication provider
+    // to finalize the authentication mechanism.
     server.app.get(
       `/api/v1/auth/${provider.urlFragment}/callback`,
       (req, res, next) => {
@@ -133,6 +148,8 @@ exports.setRoutes = async (server) => {
     )
   }
 
+  // The general logout endpoint, which should kill the
+  // passport session.
   server.app.post('/api/v1/user/logout', (req, res) => {
     try {
       req.logOut((err) => {
@@ -147,6 +164,7 @@ exports.setRoutes = async (server) => {
     }
   })
 
+  // Returns some basic information about the current user.
   server.app.get('/api/v1/user/info', (req, res) => {
     if (req.isAuthenticated()) {
       res.json({
@@ -160,6 +178,8 @@ exports.setRoutes = async (server) => {
     }
   })
 
+  // The list of all the authentication providers we
+  // have available for the user to connect with.
   server.app.get('/api/v1/providers', (req, res) => {
     res.json(providers)
   })
@@ -170,6 +190,10 @@ exports.setRoutes = async (server) => {
 
   const promises = []
 
+  // Registers and initialize each authentication provider,
+  // if it is configured. This can result in less authentication
+  // providers available to the end user than there are written
+  // here, depending on which configuration is provided.
   authProviders.forEach((providerValues) => {
     if (!server.config.providers[providerValues.configName]) return
     const registerPromise = require(providerValues.src).register(

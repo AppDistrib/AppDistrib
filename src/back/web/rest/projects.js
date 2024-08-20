@@ -1,6 +1,9 @@
 'use strict'
 
 exports.setRoutes = async (server) => {
+  // A simple GET endpoint to show the list of projects, under
+  // a certain organization. The user needs to be authenticated,
+  // and be part of the organization.
   server.app.get(
     '/api/v1/projects/list',
     server.authenticationFilter({ forAPI: true }),
@@ -35,6 +38,9 @@ exports.setRoutes = async (server) => {
     }
   )
 
+  // A POST endpoint to create a new project, under a certain
+  // organization. The user needs to be authenticated, and part
+  // of the organization.
   server.app.post(
     '/api/v1/projects/create',
     server.authenticationFilter({ forAPI: true }),
@@ -49,6 +55,8 @@ exports.setRoutes = async (server) => {
           res.status(404).json({ error: 'Organization not found' })
           return
         }
+        // We have the same validation strategy as for organization ids,
+        // given these are user input.
         const id = req.body.id
         if (
           typeof id !== 'string' ||
@@ -64,6 +72,9 @@ exports.setRoutes = async (server) => {
           res.status(400).json({ error: 'Invalid name (cannot be empty)' })
           return
         }
+        // As with the organization creation endpoint, this can technically
+        // race, but should still fail gracefully, with a 500 error instead
+        // of the nicer 409.
         const existingProject = await server.schemas.findProject({
           id,
           organization: org
@@ -87,6 +98,7 @@ exports.setRoutes = async (server) => {
     }
   )
 
+  // A POST endpoint to rename a project.
   server.app.post(
     '/api/v1/projects/rename',
     server.authenticationFilter({ forAPI: true }),
@@ -127,6 +139,8 @@ exports.setRoutes = async (server) => {
     }
   )
 
+  // A POST endpoint to change the description of a project.
+  // Currently unused, as it has no UI for it whatsoever.
   server.app.post(
     '/api/v1/projects/setDescription',
     server.authenticationFilter({ forAPI: true }),

@@ -1,6 +1,10 @@
 'use strict'
 
 exports.setRoutes = async (server) => {
+  // A simple GET endpoint, to get the list of tokens
+  // associated with a given project. The user needs
+  // to be logged in, and part of the organization owning
+  // the given project.
   server.app.get(
     '/api/v1/tokens/list',
     server.authenticationFilter({ forAPI: true }),
@@ -35,6 +39,14 @@ exports.setRoutes = async (server) => {
     }
   )
 
+  // A POST endpoint to create a token. This will actually generate
+  // a random token, which will then be returned to the web client,
+  // for displaying purposes. The token will not be stored as-is into
+  // the database, and only a hashed version will exist, so it will
+  // be impossible to recompute the clear-text token once it has been
+  // gone from this function and displayed on the user's screen.
+  // Technically, tokens support the notion of time-based expiration,
+  // but we don't have the necessary plumbing for it just yet.
   server.app.post(
     '/api/v1/tokens/create',
     server.authenticationFilter({ forAPI: true }),
@@ -74,6 +86,9 @@ exports.setRoutes = async (server) => {
     }
   )
 
+  // A POST endpoint to set the description for a given token. Unlike
+  // the other setDescription endpoints, this one is actually bound
+  // to some UI element.
   server.app.post(
     '/api/v1/tokens/setDescription',
     server.authenticationFilter({ forAPI: true }),
@@ -118,6 +133,8 @@ exports.setRoutes = async (server) => {
     }
   )
 
+  // A POST endpoint to delete a token. Useful when the user has lost the
+  // clear-text version of a given token, and that it needs to be refreshed.
   server.app.post(
     '/api/v1/tokens/delete',
     server.authenticationFilter({ forAPI: true }),

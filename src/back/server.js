@@ -65,9 +65,11 @@ class Server {
   constructor (config) {
     this.config = setDefaultConfig(config)
     this.app = express()
+    // Binds /status to a nice page. Uses websockets.
     this.app.use(expressStatusMonitor())
     this.app.use(bodyParser.json())
     this.app.use(
+      // We could use a better logger transport here, I guess.
       expressWinston.logger({
         transports: [new winston.transports.Console()],
         meta: true,
@@ -76,6 +78,11 @@ class Server {
     )
   }
 
+  // This method is used to move an uploaded file from its
+  // temporary upload directory, and into its proper location
+  // in the storage system, based on its key. We probably
+  // need to enhance this by using an actual CDN or
+  // distributed storage. This is a write-once, read-many file.
   async moveAsset (srcPath, filename, key) {
     if (key.constructor === Uint8Array) {
       key = Buffer.from(key)
@@ -115,6 +122,7 @@ class Server {
     await fs.chmod(path.join(destPath, filename), 0o644)
   }
 
+  // Helper used when cleaning up old builds.
   async deleteAsset (key, filename) {
     if (key.constructor === Uint8Array) {
       key = Buffer.from(key)
@@ -147,12 +155,15 @@ class Server {
     await fs.remove(destPath)
   }
 
+  // Helper used when cleaning up old builds.
   async deleteBuildFiles (build, project) {
     const projectFragment = project.id.replace(/:/g, '/')
     await fs.remove(path.join(this.config.storage.path, 'manifests', projectFragment, `manifest-${build.buildId}.json`))
     await fs.remove(path.join(this.config.storage.path, 'changelogs', projectFragment, `changelog-${build.buildId}.md`))
   }
 
+  // Generates the .json file for a given build. This is a
+  // write-once, read-many file.
   async generateBuildManifest (build, project) {
     if (!build.asset) return
     const key = Buffer.from(build.asset.id, 'hex')
@@ -187,6 +198,8 @@ class Server {
     )
   }
 
+  // Generates the .md changelog file for a given build, if applicable.
+  // The file is technically write-once, read-many.
   async generateBuildChangelog (build, project, changelog) {
     if (!changelog) return
     const projectPath = path.join(
@@ -201,6 +214,10 @@ class Server {
     )
   }
 
+  // Regenerates the main manifest.json file for a given project.
+  // This is the only file which may mutate across the whole
+  // storage filesystem for a given project. All other files
+  // should be write-once, read-many.
   async generateProjectManifest (project, organization) {
     const builds = await this.schemas.listBuilds(project)
     const manifest = {
@@ -238,6 +255,11 @@ class Server {
     )
   }
 
+  // When we cleanup old builds, we may leave empty directories
+  // behind. This walks the filesystem, and attempts removing
+  // some empty directories recursively. This currently
+  // doesn't follow the "some" part of its name, but we should
+  // improve it to avoid spending too much time here.
   async deleteSomeEmptyFolders (dir) {
     const files = await fs.readdir(dir)
     if (files.length === 0) {
@@ -252,6 +274,8 @@ class Server {
     }
   }
 
+  // Sets up the main server's database connection and various
+  // cron jobs, as well as the main webserver.
   async initialize () {
     const db = database.create(this.config.pgConfig)
     await db.connect()
@@ -285,13 +309,21 @@ class Server {
   }
 }
 
+// We start all of the subsystems of our backend here.
 exports.main = async (config) => {
   const server = new Server(config)
   const promises = []
   promises.concat(await server.initialize())
+  // The static routes. Most of them shouldn't be required in production, as the
+  // front-end should be able to serve them directly. The rest of the static routes
+  // are for the prettification of the URL.
   promises.concat(await require('./web/static.js').setRoutes(server))
+  // The authentication routes, handling the ins and outs of authenticating a user.
+  // It will use passport, and have mechanisms to enhance a session with user info.
   promises.concat(await require('./web/auth.js').setRoutes(server))
+  // The REST API routes.
   promises.concat(await require('./web/rest/index.js').setRoutes(server))
+  // The gRPC service itself.
   promises.concat(await require('./grpc/service.js').setService(server))
 
   return Promise.all(promises)

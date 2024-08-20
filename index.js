@@ -1,5 +1,7 @@
 'use strict'
 
+// This index.js is for the entry point of the server, which really will go
+// run the code from src/back
 const server = require('./src/back/server.js')
 const fs = require('fs-extra')
 const { program } = require('commander')

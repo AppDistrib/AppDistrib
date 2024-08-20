@@ -1,6 +1,8 @@
 'use strict'
 
 exports.setRoutes = async (server) => {
+  // A simple GET endpoint to show the list of organizations
+  // available to a logged in user.
   server.app.get(
     '/api/v1/orgs/list',
     server.authenticationFilter({ forAPI: true }),
@@ -14,11 +16,14 @@ exports.setRoutes = async (server) => {
     }
   )
 
+  // A POST request to create an organization within a logged in user.
   server.app.post(
     '/api/v1/orgs/create',
     server.authenticationFilter({ forAPI: true }),
     async (req, res) => {
       try {
+        // The user is supposed to enter the id of the organization
+        // to create, so we'll sanitize it here.
         const id = req.body.id
         if (
           typeof id !== 'string' ||
@@ -29,11 +34,15 @@ exports.setRoutes = async (server) => {
           res.status(400).json({ error: 'Invalid ID' })
           return
         }
+        // We can be a bit more lax with the organization name.
         const name = req.body.name
         if (typeof name !== 'string' || name.length === 0) {
           res.status(400).json({ error: 'Invalid name (cannot be empty)' })
           return
         }
+        // This technically can be a race condition, but the database
+        // will just throw a different error which will be displayed
+        // as a 500 instead of a 409.
         const existingOrg = await server.schemas.findOrganization(id)
         if (existingOrg) {
           res
@@ -53,6 +62,7 @@ exports.setRoutes = async (server) => {
     }
   )
 
+  // A POST request to rename an organization.
   server.app.post(
     '/api/v1/orgs/rename',
     server.authenticationFilter({ forAPI: true }),
@@ -80,6 +90,9 @@ exports.setRoutes = async (server) => {
     }
   )
 
+  // A POST request to change the description of an organization.
+  // While this endpoint exists, we currently do not have the UI
+  // for it just yet.
   server.app.post(
     '/api/v1/orgs/setDescription',
     server.authenticationFilter({ forAPI: true }),
