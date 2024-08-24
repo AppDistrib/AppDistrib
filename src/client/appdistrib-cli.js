@@ -15,6 +15,11 @@ function setOptions (options) {
   if (options.quiet !== undefined) {
     ret.quiet = options.quiet
   }
+  if (options.verbose !== undefined) {
+    ret.log = console.log
+  } else {
+    ret.log = () => {}
+  }
   ret.token = options.token
   if (ret.token === undefined) {
     ret.token = process.env.APPDISTRIB_TOKEN
@@ -92,10 +97,12 @@ async function createGrpcClient (options) {
   metadata.add('organization', options.organization)
   const origGetNextBuildId = client.GetNextBuildId
   client.GetNextBuildId = promisify((callback) => {
+    options.log('Requesting next build ID')
     return origGetNextBuildId.call(client, {}, metadata, callback)
   })
   const origNewBuild = client.NewBuild
   client.NewBuild = () => {
+    options.log('Creating new build')
     return origNewBuild.call(client, metadata)
   }
   return client
@@ -129,6 +136,10 @@ async function main () {
       '-o, --organization <organization>',
       'Organization ID to use to authenticate to the AppDistrib server.'
     )
+    .option(
+      '-v, --verbose',
+      'Verbose mode. Will output more information about the process.'
+    )
     // technically, these are part of the upload command, but it seems
     // that commander isn't working properly?
     .option(
@@ -156,6 +167,7 @@ async function main () {
       const options = setOptions(program.optsWithGlobals())
       const client = await createGrpcClient(options)
       const buildid = await client.GetNextBuildId()
+      options.log('Received next build ID: %o', buildid)
       console.log(JSON.stringify({ buildid: buildid.id }))
     })
 
@@ -184,16 +196,16 @@ async function main () {
         changelog = await fs.readFile(options.changelog)
       }
       const call = client.NewBuild()
-      call.write({
-        header: {
-          buildId: options.buildid ? { id: options.buildid } : undefined,
-          keep: options.keep,
-          fileSize,
-          filename: path.basename(fileName),
-          manifest: JSON.stringify(manifest),
-          changelog
-        }
-      })
+      const header = {
+        buildId: options.buildid ? { id: options.buildid } : undefined,
+        keep: options.keep,
+        fileSize,
+        filename: path.basename(fileName),
+        manifest: JSON.stringify(manifest),
+        changelog
+      }
+      options.log('Starting upload of file, sending header: %o', header)
+      call.write({ header })
       const bar = new cliProgress.SingleBar(
         {},
         cliProgress.Presets.shades_classic
@@ -201,6 +213,7 @@ async function main () {
       bar.start(fileSize, 0)
       const callData = {}
       call.on('data', async (payload) => {
+        options.log('Received payload: %o', payload)
         switch (payload.response) {
           case 'buildId':
             {
@@ -211,6 +224,7 @@ async function main () {
                 .on('readable', async () => {
                   const data = await callData.file.read()
                   if (data) {
+                    options.log('Reading file chunk number %d of size %d', callData.chunks.length, data.length)
                     bar.update((lengthProgress += data.length))
                     hash.update(data)
                     callData.chunks.push(data)
@@ -220,6 +234,7 @@ async function main () {
                   const data = callData.chunks.shift()
                   lengthProgress = data.length
                   bar.update(data.length)
+                  options.log('Finished reading file, sending first chunk of size %d', data.length)
                   call.write({ chunk: { data } })
                 })
             }
@@ -229,10 +244,13 @@ async function main () {
               const data = callData.chunks.shift()
               if (data) {
                 bar.update((lengthProgress += data.length))
+                options.log('Sending next chunk of size %d', data.length)
                 call.write({ chunk: { data } })
               } else {
                 hash.digestInto(digest)
-                call.write({ footer: { hash: digest } })
+                const footer = { hash: digest }
+                options.log('Sending footer: %o', footer)
+                call.write({ footer })
                 call.end()
               }
             }
