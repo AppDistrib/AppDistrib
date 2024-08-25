@@ -28,22 +28,25 @@ export const useBuildsStore = defineStore('builds', {
         this.project = manifest.project
         for (const build of manifest.builds) {
           try {
-            const buildManifest = await api.get(
-              `${this.orgId}/${this.projectId}/manifest-${build.id}.json`
-            )
-            buildManifest.changelog = ''
-            const createdAt = new Date(buildManifest.createdAt * 1000)
-            buildManifest.createdAt = createdAt.toString()
-            this.asArray.push(buildManifest)
-            this.asMap[build.id] = buildManifest
-            const response = await fetch(
-              `/storage/changelogs/${this.orgId}/${this.projectId}/changelog-${build.id}.md`
-            )
-            if (response.status >= 200 && response.status < 300) {
-              const changelog = await response.text()
-              buildManifest.changelog = changelog
-            }
-          } catch (err) {}
+            api.get(`${this.orgId}/${this.projectId}/manifest-${build.id}.json`).then(async (buildManifest) => {
+              buildManifest.changelog = ''
+              buildManifest.id = build.id
+              const createdAt = new Date(buildManifest.createdAt * 1000)
+              buildManifest.createdAt = createdAt.toString()
+              const response = await fetch(`/storage/changelogs/${this.orgId}/${this.projectId}/changelog-${build.id}.md`)
+              if (response.status >= 200 && response.status < 300) {
+                const changelog = await response.text()
+                buildManifest.changelog = changelog
+              }
+              this.asArray.push(buildManifest)
+              this.asMap[build.id] = buildManifest
+              this.asArray.sort((a, b) => {
+                if (a.id > b.id) return -1
+                if (a.id < b.id) return 1
+                return 0
+              })
+            })
+          } catch (err) { }
         }
       } catch (err) {
         this.organization = {}
