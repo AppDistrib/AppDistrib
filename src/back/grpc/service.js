@@ -343,6 +343,53 @@ exports.setService = async (server) => {
           call.emit('error', errorToStatus(err))
         }
       })
+    },
+    GenerateManifestsForProject: async (call, callback) => {
+      try {
+        const tokenArray = call.metadata.get('token')
+        if (tokenArray.length !== 1) {
+          throw new Error('Missing or incorrect metadata')
+        }
+        const token = tokenArray[0]
+        const organizationIDArray = call.metadata.get('organization')
+        if (organizationIDArray.length !== 1) {
+          throw new Error('Missing or incorrect metadata')
+        }
+        const organizationID = organizationIDArray[0]
+        const organization = await server.schemas.findOrganization(organizationID)
+        if (!organization) {
+          throw new Error('Organization not found')
+        }
+        const projectIDArray = call.metadata.get('project')
+        if (projectIDArray.length !== 1) {
+          throw new Error('Missing or incorrect metadata')
+        }
+        const projectID = projectIDArray[0]
+        const project = await server.schemas.findProject({
+          id: projectID,
+          organization
+        })
+        if (!project) {
+          throw new Error('Project not found')
+        }
+        const tokenValid = await server.schemas.validateProjectFromToken({
+          secretKey: server.config.secretKey,
+          token,
+          project
+        })
+        if (!tokenValid) {
+          throw new Error('Invalid token')
+        }
+        const builds = await server.schemas.listBuilds(project)
+        for (const build of builds) {
+          await server.generateBuildManifest(build, project)
+        }
+        await server.generateProjectManifest(project, organization)
+        callback(null, {})
+      } catch (err) {
+        console.error(err)
+        callback(err)
+      }
     }
   })
   return [

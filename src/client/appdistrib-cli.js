@@ -18,7 +18,7 @@ function setOptions (options) {
   if (options.verbose !== undefined) {
     ret.log = console.log
   } else {
-    ret.log = () => {}
+    ret.log = () => { }
   }
   ret.token = options.token
   if (ret.token === undefined) {
@@ -105,6 +105,11 @@ async function createGrpcClient (options) {
     options.log('Creating new build')
     return origNewBuild.call(client, metadata)
   }
+  const origGenerateManifestsForProject = client.GenerateManifestsForProject
+  client.GenerateManifestsForProject = promisify((callback) => {
+    options.log('Requesting regeneration of manifest files')
+    return origGenerateManifestsForProject.call(client, {}, metadata, callback)
+  })
   return client
 }
 
@@ -275,6 +280,15 @@ async function main () {
         bar.stop()
         throw err
       })
+    })
+
+  program
+    .command('regenerate')
+    .description('Regenerates the manifest files for a project.')
+    .action(async () => {
+      const options = setOptions(program.optsWithGlobals())
+      const client = await createGrpcClient(options)
+      await client.GenerateManifestsForProject()
     })
 
   program.parse()

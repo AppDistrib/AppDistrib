@@ -51,7 +51,11 @@ message NewBuildResponse {
     }
 }
 
+message GenerateManifestsForProjectRequest {}
+message GenerateManifestsForProjectResponse {}
+
 service AppDistrib {
     rpc GetNextBuildId(GetNextBuildId) returns (BuildId) {}
     rpc NewBuild(stream NewBuild) returns (stream NewBuildResponse) {}
+    rpc GenerateManifestsForProject(GenerateManifestsForProjectRequest) returns (GenerateManifestsForProjectResponse) {}
 }
