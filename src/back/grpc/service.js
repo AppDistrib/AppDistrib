@@ -378,7 +378,11 @@ exports.setService = async (server) => {
           project
         })
         if (!tokenValid) {
-          throw new Error('Invalid token')
+          call.emit(
+            'error',
+            errorToStatus(new Error('Invalid token'), grpc.status.UNAUTHENTICATED)
+          )
+          return
         }
         const builds = await server.schemas.listBuilds(project)
         for (const build of builds) {
