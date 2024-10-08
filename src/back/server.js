@@ -149,8 +149,8 @@ class Server {
 
   async deleteBuildFiles (build, project) {
     const projectFragment = project.id.replace(/:/g, '/')
-    await fs.remove(path.join(this.config.storage.path, 'manifests', projectFragment), `manifest-${build.buildId}.json`)
-    await fs.remove(path.join(this.config.storage.path, 'changelogs', projectFragment), `changelog-${build.buildId}.md`)
+    await fs.remove(path.join(this.config.storage.path, 'manifests', projectFragment, `manifest-${build.buildId}.json`))
+    await fs.remove(path.join(this.config.storage.path, 'changelogs', projectFragment, `changelog-${build.buildId}.md`))
   }
 
   async generateBuildManifest (build, project) {
