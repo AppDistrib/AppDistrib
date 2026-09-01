@@ -309,6 +309,10 @@ class Server {
   }
 }
 
+// Exported so the tests can build the app without also binding a fixed port
+// and starting the cron jobs.
+exports.Server = Server
+
 // We start all of the subsystems of our backend here.
 exports.main = async (config) => {
   const server = new Server(config)

@@ -4,6 +4,7 @@
   "private": true,
   "prettier": "prettier-config-standard",
   "scripts": {
+    "test": "node --test --test-concurrency=1 --test-force-exit \"test/**/*.test.js\"",
     "lint": "eslint .",
     "devFront": "vite",
     "buildFront": "vite build",
