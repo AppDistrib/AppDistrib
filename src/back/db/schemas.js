@@ -401,7 +401,14 @@ module.exports = class Schemas {
     if (tokenValues.length !== 2 || tokenValues[0] !== 'tk1') {
       return false
     }
+    // base85.decode returns false rather than throwing when the payload is not
+    // decodable, and feeding that to hmac.update throws 'Uint8Array expected'.
+    // Unguarded, a token like `tk1.nonsense` came back as INTERNAL instead of
+    // an authentication failure.
     const tokenBuffer = base85.decode(tokenValues[1].replace(/_/g, '.'))
+    if (!Buffer.isBuffer(tokenBuffer)) {
+      return false
+    }
     hash.update(tokenBuffer)
     const digest = hash.digest()
     const result = await this.Token.findAll({
