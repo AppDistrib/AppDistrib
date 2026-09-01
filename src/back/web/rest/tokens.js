@@ -120,7 +120,10 @@ exports.setRoutes = async (server) => {
           res.status(404).json({ error: 'Project not found' })
           return
         }
-        const token = await server.schemas.findToken(req.body.token)
+        const token = await server.schemas.findToken({
+          hash: req.body.token,
+          project
+        })
         if (!token) {
           res.status(404).json({ error: 'Token not found' })
           return
@@ -161,7 +164,10 @@ exports.setRoutes = async (server) => {
           res.status(404).json({ error: 'Project not found' })
           return
         }
-        const token = await server.schemas.findToken(req.body.token)
+        const token = await server.schemas.findToken({
+          hash: req.body.token,
+          project
+        })
         if (!token) {
           res.status(404).json({ error: 'Token not found' })
           return

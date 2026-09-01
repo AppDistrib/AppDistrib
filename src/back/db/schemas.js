@@ -377,10 +377,15 @@ module.exports = class Schemas {
     return 'tk1.' + ret.replace(/\./g, '_')
   }
 
-  async findToken (hash) {
+  // Tokens are only ever addressed within the project that owns them. Taking
+  // the project here rather than filtering at the call site means a caller
+  // cannot forget to, which is how a token from another project used to be
+  // reachable by hash alone.
+  async findToken ({ hash, project }) {
     const result = await this.Token.findAll({
       where: {
-        hash
+        hash,
+        projectId: project.id
       }
     })
     return result.length === 1 ? result[0] : false
@@ -408,7 +413,17 @@ module.exports = class Schemas {
         required: true
       }
     })
-    return result.length === 1 && result[0].project.id === project.id
+    if (result.length !== 1 || result[0].project.id !== project.id) {
+      return false
+    }
+    // The expiration column has existed since the initial schema and nothing
+    // ever read it, so an expired token validated exactly like a fresh one.
+    // Null still means "never expires", which is what every existing row has.
+    const expiration = result[0].expiration
+    if (expiration !== null && expiration !== undefined) {
+      if (new Date(expiration).getTime() <= Date.now()) return false
+    }
+    return true
   }
 
   async getNextBuildId (project) {
