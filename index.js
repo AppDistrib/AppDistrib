@@ -20,9 +20,22 @@ async function main () {
 
   const options = program.optsWithGlobals()
   let config = {}
+  let raw
   try {
-    config = JSON.parse(await fs.readFile(options.config, 'utf-8'))
-  } catch (err) {}
+    raw = await fs.readFile(options.config, 'utf-8')
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err
+    // An absent config is allowed and gets the built-in defaults, but say so:
+    // those defaults include a secretKey of 'test', which is what tokens are
+    // validated against, and a storage secretKey of 'test', which is what every
+    // asset path is derived from. Falling back to them by accident is not
+    // something anyone should have to discover from the outside.
+    console.warn(
+      `No configuration file at ${options.config}, using defaults. ` +
+        'Tokens and asset paths will use the built-in test keys.'
+    )
+  }
+  if (raw !== undefined) config = JSON.parse(raw)
   config.nuke = options.nuke === 'Yes'
   await server.main(config)
 }
@@ -33,4 +46,5 @@ main()
   })
   .catch((err) => {
     console.error(err)
+    process.exitCode = 1
   })
