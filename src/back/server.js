@@ -312,19 +312,23 @@ class Server {
 // We start all of the subsystems of our backend here.
 exports.main = async (config) => {
   const server = new Server(config)
+  // These have to be push, not concat: concat returns a new array and leaves
+  // this one empty, so every promise below used to be dropped on the floor and
+  // 'Server started' printed before the auth providers had finished
+  // registering.
   const promises = []
-  promises.concat(await server.initialize())
+  promises.push(...(await server.initialize()))
   // The static routes. Most of them shouldn't be required in production, as the
   // front-end should be able to serve them directly. The rest of the static routes
   // are for the prettification of the URL.
-  promises.concat(await require('./web/static.js').setRoutes(server))
+  promises.push(...(await require('./web/static.js').setRoutes(server)))
   // The authentication routes, handling the ins and outs of authenticating a user.
   // It will use passport, and have mechanisms to enhance a session with user info.
-  promises.concat(await require('./web/auth.js').setRoutes(server))
+  promises.push(...(await require('./web/auth.js').setRoutes(server)))
   // The REST API routes.
-  promises.concat(await require('./web/rest/index.js').setRoutes(server))
+  promises.push(...(await require('./web/rest/index.js').setRoutes(server)))
   // The gRPC service itself.
-  promises.concat(await require('./grpc/service.js').setService(server))
+  promises.push(...(await require('./grpc/service.js').setService(server)))
 
   return Promise.all(promises)
 }

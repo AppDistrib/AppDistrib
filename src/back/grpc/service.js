@@ -14,8 +14,13 @@ const { sha1 } = require('@noble/hashes/sha1')
 const { sha3_256 } = require('@noble/hashes/sha3')
 const { hmac } = require('@noble/hashes/hmac')
 
+// Only the message goes to the client. Serializing the error with
+// Object.getOwnPropertyNames pulls in `stack`, which handed every caller our
+// absolute source paths, including on failures that happen before the token is
+// ever checked. The full error still goes to the server log.
 function errorToStatus (err, code = grpc.status.INTERNAL) {
-  return { code, details: JSON.stringify(err, Object.getOwnPropertyNames(err)) }
+  console.error(err)
+  return { code, details: err.message ?? String(err) }
 }
 
 exports.setService = async (server) => {
@@ -222,16 +227,20 @@ exports.setService = async (server) => {
               if (callData.gotFooter) {
                 call.emit(
                   'error',
-                  errorToStatus(new Error('Footer already received')),
-                  grpc.status.INVALID_ARGUMENT
+                  errorToStatus(
+                    new Error('Footer already received'),
+                    grpc.status.INVALID_ARGUMENT
+                  )
                 )
                 break
               }
               if (!callData.gotHeader || !callData.gotChunk) {
                 call.emit(
                   'error',
-                  errorToStatus(new Error('Header or chunk not received')),
-                  grpc.status.INVALID_ARGUMENT
+                  errorToStatus(
+                    new Error('Header or chunk not received'),
+                    grpc.status.INVALID_ARGUMENT
+                  )
                 )
                 break
               }
@@ -414,6 +423,7 @@ exports.setService = async (server) => {
         (err, port) => {
           if (err !== null) {
             reject(err)
+            return
           }
           console.log(`gRPC server bound on port ${port}`)
           resolve(port)
