@@ -1,5 +1,21 @@
 'use strict'
 
+// The only shape of a project we ever send to a client. `key` is half of the
+// HMAC key for every token in the project and must never leave the server, and
+// `id` is stored as `<org>:<project>` while clients only ever deal in the bare
+// part. Both routes that return a project go through here so the two cannot
+// drift apart again.
+function publicProject (project) {
+  const element = {}
+  Object.keys(project.dataValues).forEach((key) => {
+    let value = project.dataValues[key]
+    if (key === 'key') return
+    if (key === 'id') value = value.split(':')[1]
+    element[key] = value
+  })
+  return element
+}
+
 exports.setRoutes = async (server) => {
   // A simple GET endpoint to show the list of projects, under
   // a certain organization. The user needs to be authenticated,
@@ -19,19 +35,7 @@ exports.setRoutes = async (server) => {
           return
         }
         const projects = await server.schemas.listProjects(org)
-        const results = []
-        projects.forEach((project) => {
-          const element = {}
-          console.log(typeof project.dataValues)
-          Object.keys(project.dataValues).forEach(key => {
-            let value = project.dataValues[key]
-            if (key === 'key') return
-            if (key === 'id') value = value.split(':')[1]
-            element[key] = value
-          })
-          results.push(element)
-        })
-        res.json(results)
+        res.json(projects.map(publicProject))
       } catch (err) {
         res.status(500).json({ error: err.toString() })
       }
@@ -89,8 +93,11 @@ exports.setRoutes = async (server) => {
             name,
             organization: org
           })
-          res.json(project)
+          // Generate the manifest before responding: doing it after means a
+          // failure here hits the catch and tries to send a 500 on top of a
+          // response the client already has.
           await server.generateProjectManifest(project, org)
+          res.json(publicProject(project))
         }
       } catch (err) {
         res.status(500).json({ error: err.toString() })
