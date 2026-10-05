@@ -23,6 +23,20 @@ function errorToStatus (err, code = grpc.status.INTERNAL) {
   return { code, details: err.message ?? String(err) }
 }
 
+// The filename is joined onto the asset's directory, and moveAsset removes
+// whatever that path names before linking the blob there. "..", "." and "" name
+// a directory instead of a file in it, and since storage is shared by content
+// across every project, removing it can delete another project's artifact.
+function isValidFilename (filename) {
+  return (
+    typeof filename === 'string' &&
+    filename !== '' &&
+    filename !== '.' &&
+    filename !== '..' &&
+    !/[/\\\0]/.test(filename)
+  )
+}
+
 exports.setService = async (server) => {
   const pkgDefinition = await protoLoader.load(
     path.join(__dirname, '..', '..', 'client', 'appdistrib.proto'),
@@ -153,7 +167,7 @@ exports.setService = async (server) => {
               )
               callData.clientInfo.changelog = payload.header?.changelog
               callData.sentBuild = true
-              if (callData.clientInfo.filename.split('/').length > 1) {
+              if (!isValidFilename(callData.clientInfo.filename)) {
                 call.emit(
                   'error',
                   errorToStatus(
