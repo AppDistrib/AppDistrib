@@ -96,6 +96,8 @@ async function start () {
     return { status: res.status, body: json }
   }
 
+  let grpcClient = null
+
   return {
     server,
     schemas: server.schemas,
@@ -138,7 +140,38 @@ async function start () {
       })
       return { user, org, project }
     },
+    // Brings up the real gRPC service on an ephemeral port and returns a
+    // client for it, with the same proto and the same loader options the CLI
+    // uses. Metadata is per call, so tests can present any token they like.
+    async startGrpc () {
+      const grpc = require('@grpc/grpc-js')
+      const protoLoader = require('@grpc/proto-loader')
+      server.config.grpcConfig = { host: '127.0.0.1', port: 0 }
+      const [bound] = await require('../../src/back/grpc/service.js').setService(server)
+      const port = await bound
+      const pkgDefinition = await protoLoader.load(
+        path.join(__dirname, '..', '..', 'src', 'client', 'appdistrib.proto'),
+        { oneofs: true }
+      )
+      const pkg = grpc.loadPackageDefinition(pkgDefinition)
+      grpcClient = new pkg.appdistrib.AppDistrib(
+        `127.0.0.1:${port}`,
+        grpc.credentials.createInsecure()
+      )
+      return {
+        client: grpcClient,
+        metadata ({ token, organization, project }) {
+          const metadata = new grpc.Metadata()
+          if (token !== undefined) metadata.add('token', token)
+          metadata.add('organization', organization)
+          metadata.add('project', project)
+          return metadata
+        }
+      }
+    },
     async stop () {
+      if (grpcClient) grpcClient.close()
+      if (server.grpcServer) server.grpcServer.forceShutdown()
       await new Promise((resolve) => listener.close(resolve))
       await db.sequelize.close()
       await fs.remove(storagePath)
