@@ -88,6 +88,7 @@ exports.setService = async (server) => {
   // The actual gRPC server, with the implementation of our three methods:
   // GetNextBuildId, NewBuild and GenerateManifestsForProject.
   const grpcServer = new grpc.Server(keepaliveOptions)
+  server.grpcServer = grpcServer
   grpcServer.addService(pkg.appdistrib.AppDistrib.service, {
     // The GetNextBuildId method returns the next build ID for a project. It
     // doesn't require a token, as it only reads public data.
