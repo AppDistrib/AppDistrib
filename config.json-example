@@ -18,7 +18,8 @@
         "database": "appdistrib"
     },
     "storage": {
-        "secretKey": "anotherSeed"
+        "secretKey": "anotherSeed",
+        "maxUploadSize": 1073741824
     },
     "webServer": {
         "baseURL": "https://distrib.app",
