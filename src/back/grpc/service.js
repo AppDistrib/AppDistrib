@@ -166,7 +166,6 @@ exports.setService = async (server) => {
                 payload.header?.manifest
               )
               callData.clientInfo.changelog = payload.header?.changelog
-              callData.sentBuild = true
               if (!isValidFilename(callData.clientInfo.filename)) {
                 call.emit(
                   'error',
@@ -191,6 +190,11 @@ exports.setService = async (server) => {
                 )
                 break
               }
+              // Only now is the header accepted. Messages that arrive while the
+              // lookups above are pending are handled meanwhile, so setting this
+              // any earlier would let a pipelined upload store its asset behind
+              // a header that is then refused.
+              callData.sentBuild = true
               call.write({
                 buildId: { buildId: { id: callData.clientInfo.buildId } }
               })
