@@ -176,6 +176,19 @@ exports.setService = async (server) => {
                 )
                 break
               }
+              // Optional cap, in bytes. The declared size is enforced against
+              // the chunks as they arrive, so this bounds the whole upload.
+              const maxUploadSize = server.config.storage.maxUploadSize
+              if (maxUploadSize && callData.clientInfo.fileSize > maxUploadSize) {
+                call.emit(
+                  'error',
+                  errorToStatus(
+                    new Error('File too large'),
+                    grpc.status.INVALID_ARGUMENT
+                  )
+                )
+                break
+              }
               const build = await server.schemas.getBuild({
                 project: callData.project,
                 id: callData.clientInfo.buildId
@@ -227,6 +240,19 @@ exports.setService = async (server) => {
                   'error',
                   errorToStatus(
                     new Error('Chunk data not provided'),
+                    grpc.status.INVALID_ARGUMENT
+                  )
+                )
+                break
+              }
+              if (
+                callData.payloadSize + payload.chunk.data.length >
+                callData.clientInfo.fileSize
+              ) {
+                call.emit(
+                  'error',
+                  errorToStatus(
+                    new Error('More data than the declared file size'),
                     grpc.status.INVALID_ARGUMENT
                   )
                 )
