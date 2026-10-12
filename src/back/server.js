@@ -8,7 +8,6 @@ const express = require('express')
 const winston = require('winston')
 const expressWinston = require('express-winston')
 const bodyParser = require('body-parser')
-const expressStatusMonitor = require('express-status-monitor')
 
 const cron = require('node-cron')
 
@@ -65,8 +64,6 @@ class Server {
   constructor (config) {
     this.config = setDefaultConfig(config)
     this.app = express()
-    // Binds /status to a nice page. Uses websockets.
-    this.app.use(expressStatusMonitor())
     this.app.use(bodyParser.json())
     this.app.use(
       // We could use a better logger transport here, I guess.
