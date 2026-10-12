@@ -12,7 +12,6 @@ import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 
 import { createApp } from 'vue'
-import VueSimpleAlert from 'vue3-simple-alert'
 import { LoadingPlugin } from 'vue-loading-overlay'
 import PrimeVue from 'primevue/config'
 import { createPinia } from 'pinia'
@@ -29,7 +28,6 @@ import errorCatcher from './utils/error-catcher'
 
 const app = createApp(App)
   .use(router)
-  .use(VueSimpleAlert)
   .use(LoadingPlugin)
   .use(PrimeVue)
   .component('Accordion', Accordion)
