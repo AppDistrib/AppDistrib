@@ -66,9 +66,14 @@
     "@types/pg": "^8.11.2",
     "@types/sequelize": "^4.28.20",
     "@types/umzug": "^2.3.7",
-    "@vitejs/plugin-vue": "^5.0.4",
+    "@vitejs/plugin-vue": "^5.2.4",
     "prettier-config-standard": "^7.0.0",
     "standard": "*",
-    "vite": "^5.1.5"
+    "vite": "^6.4.4"
+  },
+  "overrides": {
+    "base85": {
+      "ip-address": "^10.7.4"
+    }
   }
 }
