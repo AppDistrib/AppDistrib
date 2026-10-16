@@ -211,6 +211,15 @@ class Server {
     )
   }
 
+  // The directory holding a project's manifest.json, and its index.json.
+  getProjectManifestPath (project) {
+    return path.join(
+      this.config.storage.path,
+      'manifests',
+      project.id.replace(/:/g, '/')
+    )
+  }
+
   // Regenerates the main manifest.json file for a given project.
   // This is the only file which may mutate across the whole
   // storage filesystem for a given project. All other files
@@ -240,11 +249,7 @@ class Server {
       })
     }
     manifest.builds.sort((a, b) => b.id - a.id)
-    const projectPath = path.join(
-      this.config.storage.path,
-      'manifests',
-      project.id.replace(/:/g, '/')
-    )
+    const projectPath = this.getProjectManifestPath(project)
     await fs.ensureDir(projectPath)
     await fs.writeFile(
       path.join(projectPath, 'manifest.json'),
