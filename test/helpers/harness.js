@@ -103,6 +103,7 @@ async function start () {
     schemas: server.schemas,
     config,
     storagePath,
+    base,
     get: (p) => api('GET', p),
     post: (p, body) => api('POST', p, body),
     becomeUser (user) {
