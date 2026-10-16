@@ -3,6 +3,21 @@
 const path = require('node:path')
 
 const express = require('express')
+const fs = require('fs-extra')
+
+const { isValidFilename } = require('../grpc/service.js')
+
+// The /storage URL of an asset, as served by the static /storage route.
+function assetUrl (asset) {
+  const key = Buffer.from(asset.id, 'hex')
+  const hexKey = key.toString('hex')
+  const key1 = hexKey.slice(0, 3)
+  const key2 = hexKey.slice(3, 6)
+  const key3 = hexKey.slice(6, 9)
+  const key4 = hexKey.slice(9)
+  const basePath = path.join('/storage', 'assets', key1, key2, key3, key4)
+  return path.join(basePath, asset.filename).replace(/\\/g, '/')
+}
 
 exports.setRoutes = async (server) => {
   // Hopefully, /dist and /storage can be mapped by the front-end,
@@ -48,16 +63,60 @@ exports.setRoutes = async (server) => {
         res.status(404).json({ error: 'Build has no asset' })
         return
       }
-      const key = Buffer.from(build.asset.id, 'hex')
-      const hexKey = key.toString('hex')
-      const key1 = hexKey.slice(0, 3)
-      const key2 = hexKey.slice(3, 6)
-      const key3 = hexKey.slice(6, 9)
-      const key4 = hexKey.slice(9)
-      const basePath = path.join('/storage', 'assets', key1, key2, key3, key4)
-      res.redirect(path.join(basePath, build.asset.filename).replace(/\\/g, '/'))
+      res.redirect(assetUrl(build.asset))
     } catch(err) {
         res.status(500).json({ error: err.toString() })
+    }
+  })
+
+  // Version-predictable download URLs: /alias/<org>/<project>/<filename>
+  // redirects to the newest build's asset of that name, and index.json is the
+  // file the project owner uploaded with SetProjectIndex.
+  server.app.get('/alias/:orgId/:projectId/:filename', async (req, res) => {
+    try {
+      const org = await server.schemas.findOrganization(req.params.orgId)
+      if (!org) {
+        res.status(404).json({ error: 'Organization not found' })
+        return
+      }
+      const project = await server.schemas.findProject({
+        id: req.params.projectId,
+        organization: org
+      })
+      if (!project) {
+        res.status(404).json({ error: 'Project not found' })
+        return
+      }
+      const filename = req.params.filename
+      if (filename === 'index.json') {
+        let index
+        try {
+          index = await fs.readFile(
+            path.join(server.getProjectManifestPath(project), 'index.json')
+          )
+        } catch (err) {
+          if (err.code !== 'ENOENT') throw err
+          res.status(404).json({ error: 'No index uploaded' })
+          return
+        }
+        res.set('Content-Type', 'application/json')
+        res.set('Cache-Control', 'no-cache')
+        res.send(index)
+        return
+      }
+      if (!isValidFilename(filename)) {
+        res.status(400).json({ error: 'Invalid filename' })
+        return
+      }
+      const build = await server.schemas.getLastBuildByFilename(project, filename)
+      if (!build || !build.asset) {
+        res.status(404).json({ error: 'No build with that filename' })
+        return
+      }
+      res.set('Cache-Control', 'no-cache')
+      res.redirect(assetUrl(build.asset))
+    } catch (err) {
+      res.status(500).json({ error: err.toString() })
     }
   })
 

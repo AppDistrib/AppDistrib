@@ -456,6 +456,20 @@ module.exports = class Schemas {
     return result.length !== 0 ? result[0] : false
   }
 
+  // The newest build of the project, in the same order as getLastBuild, whose
+  // asset carries exactly this filename.
+  async getLastBuildByFilename (project, filename) {
+    const result = await this.Build.findAll({
+      where: {
+        projectId: project.id
+      },
+      order: [['buildId', 'DESC']],
+      limit: 1,
+      include: { model: this.Asset, required: true, where: { filename } }
+    })
+    return result.length !== 0 ? result[0] : false
+  }
+
   async getBuild ({ project, id }) {
     const result = await this.Build.findByPk(project.id + ':' + id, {
       include: { model: this.Asset }

@@ -2,6 +2,7 @@
 
 const fs = require('fs-extra')
 const path = require('node:path')
+const crypto = require('node:crypto')
 const temp = require('temp').track()
 
 const grpc = require('@grpc/grpc-js')
@@ -36,6 +37,10 @@ function isValidFilename (filename) {
     !/[/\\\0]/.test(filename)
   )
 }
+
+exports.isValidFilename = isValidFilename
+
+const MAX_INDEX_SIZE = 1024 * 1024
 
 exports.setService = async (server) => {
   const pkgDefinition = await protoLoader.load(
@@ -91,6 +96,50 @@ exports.setService = async (server) => {
     await getProjectAndOrganization(call, callData)
     const buildID = await server.schemas.getNextBuildId(callData.project)
     return buildID
+  }
+
+  // Token-mandatory authentication shared by the project-level methods. Emits
+  // UNAUTHENTICATED and returns [] on a bad token; throws on bad metadata.
+  async function authenticateProject (call) {
+    const tokenArray = call.metadata.get('token')
+    if (tokenArray.length !== 1) {
+      throw new Error('Missing or incorrect metadata')
+    }
+    const token = tokenArray[0]
+    const organizationIDArray = call.metadata.get('organization')
+    if (organizationIDArray.length !== 1) {
+      throw new Error('Missing or incorrect metadata')
+    }
+    const organizationID = organizationIDArray[0]
+    const organization = await server.schemas.findOrganization(organizationID)
+    if (!organization) {
+      throw new Error('Organization not found')
+    }
+    const projectIDArray = call.metadata.get('project')
+    if (projectIDArray.length !== 1) {
+      throw new Error('Missing or incorrect metadata')
+    }
+    const projectID = projectIDArray[0]
+    const project = await server.schemas.findProject({
+      id: projectID,
+      organization
+    })
+    if (!project) {
+      throw new Error('Project not found')
+    }
+    const tokenValid = await server.schemas.validateProjectFromToken({
+      secretKey: server.config.secretKey,
+      token,
+      project
+    })
+    if (!tokenValid) {
+      call.emit(
+        'error',
+        errorToStatus(new Error('Invalid token'), grpc.status.UNAUTHENTICATED)
+      )
+      return []
+    }
+    return [organization, project]
   }
 
   const keepaliveOptions = {
@@ -410,44 +459,8 @@ exports.setService = async (server) => {
     },
     GenerateManifestsForProject: async (call, callback) => {
       try {
-        const tokenArray = call.metadata.get('token')
-        if (tokenArray.length !== 1) {
-          throw new Error('Missing or incorrect metadata')
-        }
-        const token = tokenArray[0]
-        const organizationIDArray = call.metadata.get('organization')
-        if (organizationIDArray.length !== 1) {
-          throw new Error('Missing or incorrect metadata')
-        }
-        const organizationID = organizationIDArray[0]
-        const organization = await server.schemas.findOrganization(organizationID)
-        if (!organization) {
-          throw new Error('Organization not found')
-        }
-        const projectIDArray = call.metadata.get('project')
-        if (projectIDArray.length !== 1) {
-          throw new Error('Missing or incorrect metadata')
-        }
-        const projectID = projectIDArray[0]
-        const project = await server.schemas.findProject({
-          id: projectID,
-          organization
-        })
-        if (!project) {
-          throw new Error('Project not found')
-        }
-        const tokenValid = await server.schemas.validateProjectFromToken({
-          secretKey: server.config.secretKey,
-          token,
-          project
-        })
-        if (!tokenValid) {
-          call.emit(
-            'error',
-            errorToStatus(new Error('Invalid token'), grpc.status.UNAUTHENTICATED)
-          )
-          return
-        }
+        const [organization, project] = await authenticateProject(call)
+        if (!organization) return
         const builds = await server.schemas.listBuilds(project)
         for (const build of builds) {
           await server.generateBuildManifest(build, project)
@@ -456,6 +469,51 @@ exports.setService = async (server) => {
         callback(null, {})
       } catch (err) {
         console.error(err)
+        callback(err)
+      }
+    },
+    // Stores the project's index.json, served at /alias/<org>/<project>/.
+    SetProjectIndex: async (call, callback) => {
+      let tmpPath
+      try {
+        const [organization, project] = await authenticateProject(call)
+        if (!organization) return
+        const index = call.request.index
+        if (!Buffer.isBuffer(index) || index.length > MAX_INDEX_SIZE) {
+          call.emit(
+            'error',
+            errorToStatus(
+              new Error('Index missing or larger than 1 MiB'),
+              grpc.status.INVALID_ARGUMENT
+            )
+          )
+          return
+        }
+        try {
+          JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(index))
+        } catch (err) {
+          call.emit(
+            'error',
+            errorToStatus(
+              new Error('Index is not valid JSON'),
+              grpc.status.INVALID_ARGUMENT
+            )
+          )
+          return
+        }
+        const dir = server.getProjectManifestPath(project)
+        await fs.ensureDir(dir)
+        tmpPath = path.join(
+          dir,
+          `.index.json.${crypto.randomBytes(8).toString('hex')}.tmp`
+        )
+        await fs.writeFile(tmpPath, index)
+        await fs.rename(tmpPath, path.join(dir, 'index.json'))
+        tmpPath = undefined
+        callback(null, {})
+      } catch (err) {
+        console.error(err)
+        if (tmpPath) await fs.remove(tmpPath).catch(() => {})
         callback(err)
       }
     }

@@ -110,6 +110,11 @@ async function createGrpcClient (options) {
     options.log('Requesting regeneration of manifest files')
     return origGenerateManifestsForProject.call(client, {}, metadata, callback)
   })
+  const origSetProjectIndex = client.SetProjectIndex
+  client.SetProjectIndex = promisify((index, callback) => {
+    options.log('Uploading project index of %d bytes', index.length)
+    return origSetProjectIndex.call(client, { index }, metadata, callback)
+  })
   return client
 }
 
@@ -289,6 +294,20 @@ async function main () {
       const options = setOptions(program.optsWithGlobals())
       const client = await createGrpcClient(options)
       await client.GenerateManifestsForProject()
+    })
+
+  program
+    .command('setindex')
+    .description(
+      'Sets the project index.json, served from /alias/<org>/<project>/.'
+    )
+    .argument('<file>', 'The JSON file to upload as the index.')
+    .action(async (fileName) => {
+      const options = setOptions(program.optsWithGlobals())
+      const client = await createGrpcClient(options)
+      const index = await fs.readFile(fileName)
+      await client.SetProjectIndex(index)
+      console.log('Index %s has been set.', fileName)
     })
 
   program.parse()
