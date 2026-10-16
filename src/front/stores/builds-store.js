@@ -45,7 +45,7 @@ export const useBuildsStore = defineStore('builds', {
                 if (a.id < b.id) return 1
                 return 0
               })
-            })
+            }).catch(() => {})
           } catch (err) { }
         }
       } catch (err) {
