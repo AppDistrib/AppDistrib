@@ -5,6 +5,7 @@
   "prettier": "prettier-config-standard",
   "scripts": {
     "test": "node --test --test-concurrency=1 --test-force-exit \"test/**/*.test.js\"",
+    "test:e2e": "node --test --test-concurrency=1 --test-force-exit \"test/e2e/*.e2e.js\"",
     "lint": "eslint .",
     "devFront": "vite",
     "buildFront": "vite build",
