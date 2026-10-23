@@ -77,19 +77,25 @@ async function startPostgres () {
     '-p', '127.0.0.1::5432',
     PG_IMAGE
   )
-  const mapping = await docker('port', name, '5432/tcp')
-  const port = Number(mapping.split('\n')[0].split(':').pop())
-  // The image's init runs a socket-only server first and then restarts, so
-  // only a TCP answer means the real one is up.
-  const deadline = Date.now() + 60_000
-  for (;;) {
-    try {
-      await docker('exec', name, 'pg_isready', '-q', '-h', '127.0.0.1', '-U', 'appdistrib')
-      break
-    } catch (err) {
-      if (Date.now() > deadline) throw new Error(`Postgres in ${name} never became ready`)
-      await sleep(500)
+  let port
+  try {
+    const mapping = await docker('port', name, '5432/tcp')
+    port = Number(mapping.split('\n')[0].split(':').pop())
+    // The image's init runs a socket-only server first and then restarts, so
+    // only a TCP answer means the real one is up.
+    const deadline = Date.now() + 60_000
+    for (;;) {
+      try {
+        await docker('exec', name, 'pg_isready', '-q', '-h', '127.0.0.1', '-U', 'appdistrib')
+        break
+      } catch (err) {
+        if (Date.now() > deadline) throw new Error(`Postgres in ${name} never became ready`)
+        await sleep(500)
+      }
     }
+  } catch (err) {
+    await docker('rm', '-f', name).catch(() => {})
+    throw err
   }
   return {
     name,
@@ -160,6 +166,7 @@ test.describe('NewBuild end to end against a local server', { timeout: 300_000 }
     if (await fs.pathExists(STORAGE)) {
       throw new Error(`${STORAGE} already exists; refusing to run over it`)
     }
+    ctx.ownsStorage = true
     ctx.work = await fs.mkdtemp(path.join(os.tmpdir(), 'appdistrib-e2e-'))
     ctx.uploadTmp = path.join(ctx.work, 'tmp')
     await fs.ensureDir(ctx.uploadTmp)
@@ -229,7 +236,7 @@ test.describe('NewBuild end to end against a local server', { timeout: 300_000 }
       ctx.server.child.kill('SIGKILL')
     }
     if (ctx.pg) await docker('rm', '-f', ctx.pg.name).catch(() => {})
-    await fs.remove(STORAGE)
+    if (ctx.ownsStorage) await fs.remove(STORAGE)
     if (ctx.work) {
       if (process.env.APPDISTRIB_E2E_KEEP) console.log(`kept ${ctx.work}`)
       else await fs.remove(ctx.work)
