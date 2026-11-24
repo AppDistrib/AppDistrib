@@ -210,3 +210,199 @@ test('an expired token stops validating', async (t) => {
   // that must not regress.
   assert.strictEqual(await check(forever), true, 'a null expiration never expires')
 })
+
+test('a member can mint a token, and the response is the clear text that validates', async (t) => {
+  const h = await harness.start()
+  t.after(() => h.stop())
+  const alice = await h.makeOrgWithProject({
+    userName: 'alice',
+    orgId: 'alice-org',
+    projectId: 'alice-project'
+  })
+  h.becomeUser(alice.user)
+
+  const res = await h.post('/api/v1/tokens/create', {
+    orgId: 'alice-org',
+    projectId: 'alice-project',
+    description: 'ci'
+  })
+  assert.strictEqual(res.status, 200)
+  assert.match(res.body.token, /^tk1\.[^.]+$/)
+  assert.deepStrictEqual(Object.keys(res.body), ['token'])
+
+  const listed = await h.get(
+    '/api/v1/tokens/list?orgId=alice-org&projectId=alice-project'
+  )
+  assert.strictEqual(listed.status, 200)
+  assert.strictEqual(listed.body.length, 1)
+  assert.strictEqual(listed.body[0].description, 'ci')
+  assert.ok(
+    !JSON.stringify(listed.body).includes(res.body.token.slice(4)),
+    'the clear text is not stored'
+  )
+  assert.strictEqual(
+    await h.schemas.validateProjectFromToken({
+      secretKey: h.config.secretKey,
+      token: res.body.token,
+      project: alice.project
+    }),
+    true
+  )
+})
+
+test('a member of one org cannot mint, list, re-describe or delete another org tokens', async (t) => {
+  const h = await harness.start()
+  t.after(() => h.stop())
+  const alice = await h.makeOrgWithProject({
+    userName: 'alice',
+    orgId: 'alice-org',
+    projectId: 'alice-project'
+  })
+  const bob = await h.makeOrgWithProject({
+    userName: 'bob',
+    orgId: 'bob-org',
+    projectId: 'bob-project'
+  })
+  await h.schemas.createToken({
+    secretKey: h.config.secretKey,
+    project: bob.project,
+    description: "bob's token",
+    expiration: null
+  })
+  h.becomeUser(alice.user)
+
+  const minted = await h.post('/api/v1/tokens/create', {
+    orgId: 'bob-org',
+    projectId: 'bob-project',
+    description: 'planted'
+  })
+  assert.strictEqual(minted.status, 404)
+  assert.strictEqual(minted.body.token, undefined)
+
+  const listed = await h.get('/api/v1/tokens/list?orgId=bob-org&projectId=bob-project')
+  assert.strictEqual(listed.status, 404)
+  assert.ok(!JSON.stringify(listed.body).includes("bob's token"))
+
+  // Unlike the cross-tenant tests above, alice names bob's org and project
+  // outright here, so the membership check is the only thing in the way.
+  const [bobRow] = await h.schemas.listTokens(bob.project)
+  const scope = { orgId: 'bob-org', projectId: 'bob-project', token: bobRow.hash }
+  const described = await h.post('/api/v1/tokens/setDescription', {
+    ...scope,
+    description: 'pwned'
+  })
+  assert.strictEqual(described.status, 404)
+  const deleted = await h.post('/api/v1/tokens/delete', scope)
+  assert.strictEqual(deleted.status, 404)
+
+  const rows = await h.schemas.listTokens(bob.project)
+  assert.deepStrictEqual(rows.map((r) => r.description), ["bob's token"])
+})
+
+test('an unauthenticated caller cannot mint, list, re-describe or delete tokens', async (t) => {
+  const h = await harness.start()
+  t.after(() => h.stop())
+  const alice = await h.makeOrgWithProject({
+    userName: 'alice',
+    orgId: 'alice-org',
+    projectId: 'alice-project'
+  })
+  await h.schemas.createToken({
+    secretKey: h.config.secretKey,
+    project: alice.project,
+    description: 'original',
+    expiration: null
+  })
+  const [row] = await h.schemas.listTokens(alice.project)
+  h.becomeNobody()
+
+  const scope = { orgId: 'alice-org', projectId: 'alice-project' }
+  const minted = await h.post('/api/v1/tokens/create', { ...scope, description: 'anon' })
+  assert.strictEqual(minted.status, 401)
+  const listed = await h.get('/api/v1/tokens/list?orgId=alice-org&projectId=alice-project')
+  assert.strictEqual(listed.status, 401)
+  const described = await h.post('/api/v1/tokens/setDescription', {
+    ...scope,
+    token: row.hash,
+    description: 'anon'
+  })
+  assert.strictEqual(described.status, 401)
+  const deleted = await h.post('/api/v1/tokens/delete', { ...scope, token: row.hash })
+  assert.strictEqual(deleted.status, 401)
+
+  const rows = await h.schemas.listTokens(alice.project)
+  assert.deepStrictEqual(rows.map((r) => r.description), ['original'])
+})
+
+test('token routes reject missing ids, unknown projects and malformed input', async (t) => {
+  const h = await harness.start()
+  t.after(() => h.stop())
+  const alice = await h.makeOrgWithProject({
+    userName: 'alice',
+    orgId: 'alice-org',
+    projectId: 'alice-project'
+  })
+  await h.schemas.createToken({
+    secretKey: h.config.secretKey,
+    project: alice.project,
+    description: 'original',
+    expiration: null
+  })
+  const [row] = await h.schemas.listTokens(alice.project)
+  h.becomeUser(alice.user)
+
+  const routes = {
+    create: { description: 'x' },
+    setDescription: { token: row.hash, description: 'x' },
+    delete: { token: row.hash }
+  }
+  for (const [route, extra] of Object.entries(routes)) {
+    const url = `/api/v1/tokens/${route}`
+    const noOrg = await h.post(url, { ...extra, projectId: 'alice-project' })
+    assert.strictEqual(noOrg.status, 400, `${route} without orgId`)
+    const noProject = await h.post(url, { ...extra, orgId: 'alice-org' })
+    assert.strictEqual(noProject.status, 400, `${route} without projectId`)
+    const unknown = await h.post(url, {
+      ...extra,
+      orgId: 'alice-org',
+      projectId: 'no-such-project'
+    })
+    assert.strictEqual(unknown.status, 404, `${route} on an unknown project`)
+  }
+  for (const [query, why] of [
+    ['projectId=alice-project', 'without orgId'],
+    ['orgId=alice-org', 'without projectId']
+  ]) {
+    const res = await h.get(`/api/v1/tokens/list?${query}`)
+    assert.strictEqual(res.status, 400, `list ${why}`)
+  }
+  const listUnknown = await h.get('/api/v1/tokens/list?orgId=alice-org&projectId=nope')
+  assert.strictEqual(listUnknown.status, 404, 'list on an unknown project')
+
+  for (const description of [undefined, 42, { a: 1 }]) {
+    const res = await h.post('/api/v1/tokens/setDescription', {
+      orgId: 'alice-org',
+      projectId: 'alice-project',
+      token: row.hash,
+      description
+    })
+    assert.strictEqual(
+      res.status,
+      400,
+      `description ${JSON.stringify(description)} must be refused`
+    )
+  }
+  for (const route of ['setDescription', 'delete']) {
+    const res = await h.post(`/api/v1/tokens/${route}`, {
+      orgId: 'alice-org',
+      projectId: 'alice-project',
+      token: 'no-such-hash',
+      description: 'x'
+    })
+    assert.strictEqual(res.status, 404, `${route} of an unknown token`)
+  }
+
+  // Nothing above minted, re-described or deleted anything.
+  const rows = await h.schemas.listTokens(alice.project)
+  assert.deepStrictEqual(rows.map((r) => r.description), ['original'])
+})
