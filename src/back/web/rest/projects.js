@@ -76,6 +76,11 @@ exports.setRoutes = async (server) => {
           res.status(400).json({ error: 'Invalid name (cannot be empty)' })
           return
         }
+        // The column is a VARCHAR(255): longer is a database error and a 500.
+        if (name.length > 255) {
+          res.status(400).json({ error: 'Invalid name (too long)' })
+          return
+        }
         // As with the organization creation endpoint, this can technically
         // race, but should still fail gracefully, with a 500 error instead
         // of the nicer 409.
@@ -116,6 +121,11 @@ exports.setRoutes = async (server) => {
           res.status(400).json({ error: 'Invalid name (cannot be empty)' })
           return
         }
+        // The column is a VARCHAR(255): longer is a database error and a 500.
+        if (name.length > 255) {
+          res.status(400).json({ error: 'Invalid name (too long)' })
+          return
+        }
         if (!req.body.orgId) {
           res.status(400).json({ error: 'Missing orgId' })
           return
@@ -138,8 +148,10 @@ exports.setRoutes = async (server) => {
           return
         }
         await server.schemas.renameProject({ project, name })
-        res.json({ success: true })
+        // As in create: answering first means a manifest failure lands in the
+        // catch, which then tries to send a second response.
         await server.generateProjectManifest(project, org)
+        res.json({ success: true })
       } catch (err) {
         res.status(500).json({ error: err.toString() })
       }
@@ -180,8 +192,10 @@ exports.setRoutes = async (server) => {
           return
         }
         await server.schemas.setProjectDescription({ project, description })
-        res.json({ success: true })
+        // As in create: answering first means a manifest failure lands in the
+        // catch, which then tries to send a second response.
         await server.generateProjectManifest(project, org)
+        res.json({ success: true })
       } catch (err) {
         res.status(500).json({ error: err.toString() })
       }

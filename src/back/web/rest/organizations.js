@@ -40,6 +40,20 @@ exports.setRoutes = async (server) => {
           res.status(400).json({ error: 'Invalid name (cannot be empty)' })
           return
         }
+        // The column is a VARCHAR(255): longer is a database error and a 500.
+        if (name.length > 255) {
+          res.status(400).json({ error: 'Invalid name (too long)' })
+          return
+        }
+        // createOrganization refuses a user who has not been enabled by
+        // throwing, which would otherwise surface as a 500.
+        if (!req.user.enabled) {
+          res.status(403).json({
+            error:
+              "User hasn't been enabled yet. Please contact the administrator."
+          })
+          return
+        }
         // This technically can be a race condition, but the database
         // will just throw a different error which will be displayed
         // as a 500 instead of a 409.
@@ -71,6 +85,10 @@ exports.setRoutes = async (server) => {
         const name = req.body.name
         if (typeof name !== 'string' || name.length === 0) {
           res.status(400).json({ error: 'Invalid name (cannot be empty)' })
+          return
+        }
+        if (name.length > 255) {
+          res.status(400).json({ error: 'Invalid name (too long)' })
           return
         }
         if (!req.body.id) {
@@ -112,7 +130,7 @@ exports.setRoutes = async (server) => {
           res.status(404).json({ error: 'Organization not found' })
           return
         }
-        await server.schemas.setOrganizationDescription({
+        await server.schemas.setDescriptionForOrganization({
           organization: org,
           description
         })
