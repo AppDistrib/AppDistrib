@@ -270,6 +270,14 @@ test('project create rejects a missing org and malformed ids and names', async (
 
   const listed = await h.get('/api/v1/projects/list?orgId=alice-org')
   assert.deepStrictEqual(listed.body.map((p) => p.id), ['seed-project'])
+
+  // VARCHAR(255) counts characters, not UTF-16 code units.
+  const astral = await h.post('/api/v1/projects/create', {
+    orgId: 'alice-org',
+    id: 'astral',
+    name: 'n'.repeat(254) + '\u{1F600}'
+  })
+  assert.strictEqual(astral.status, 200, 'a 255-character name with an astral character still fits')
 })
 
 test('a member can rename and re-describe a project', async (t) => {

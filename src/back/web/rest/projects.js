@@ -77,7 +77,7 @@ exports.setRoutes = async (server) => {
           return
         }
         // The column is a VARCHAR(255): longer is a database error and a 500.
-        if (name.length > 255) {
+        if ([...name].length > 255) {
           res.status(400).json({ error: 'Invalid name (too long)' })
           return
         }
@@ -122,7 +122,7 @@ exports.setRoutes = async (server) => {
           return
         }
         // The column is a VARCHAR(255): longer is a database error and a 500.
-        if (name.length > 255) {
+        if ([...name].length > 255) {
           res.status(400).json({ error: 'Invalid name (too long)' })
           return
         }

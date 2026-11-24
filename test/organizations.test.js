@@ -116,6 +116,13 @@ test('organization create rejects a missing, empty, non-string or over-long name
     name: 'n'.repeat(255)
   })
   assert.strictEqual(longest.status, 200, 'a 255-character name still fits')
+
+  // VARCHAR(255) counts characters: 254 ASCII plus one astral character is 255, though .length is 256.
+  const astral = await h.post('/api/v1/orgs/create', {
+    id: 'alice-astral',
+    name: 'n'.repeat(254) + '\u{1F600}'
+  })
+  assert.strictEqual(astral.status, 200, 'a 255-character name with an astral character still fits')
 })
 
 test('a user who has not been enabled cannot create an organization', async (t) => {
