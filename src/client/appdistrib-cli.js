@@ -1,5 +1,12 @@
 'use strict'
 
+// An upload sends WINDOW chunks of CHUNK_SIZE bytes before it waits for the
+// first acknowledgement, so it costs about one round trip per WINDOW chunks
+// instead of one per chunk. CHUNK_SIZE stays well under grpc-js's 4 MiB
+// default message limit.
+const CHUNK_SIZE = 1024 * 1024
+const WINDOW = 8
+
 function setOptions (options) {
   const ret = {
     quiet: false,
@@ -222,14 +229,27 @@ async function main () {
       )
       bar.start(fileSize, 0)
       const callData = {}
+      // Sends the next read chunk, if there is one, and counts it as in flight.
+      const sendNextChunk = () => {
+        const data = callData.chunks.shift()
+        if (!data) return false
+        callData.inFlight++
+        bar.update((lengthProgress += data.length))
+        options.log('Sending chunk of size %d, %d in flight', data.length, callData.inFlight)
+        call.write({ chunk: { data } })
+        return true
+      }
       call.on('data', async (payload) => {
         options.log('Received payload: %o', payload)
         switch (payload.response) {
           case 'buildId':
             {
               callData.buildId = payload.buildId?.buildId?.id
-              callData.file = await fs.createReadStream(fileName)
+              callData.file = await fs.createReadStream(fileName, {
+                highWaterMark: CHUNK_SIZE
+              })
               callData.chunks = []
+              callData.inFlight = 0
               callData.file
                 .on('readable', async () => {
                   const data = await callData.file.read()
@@ -241,22 +261,22 @@ async function main () {
                   }
                 })
                 .on('end', () => {
-                  const data = callData.chunks.shift()
-                  lengthProgress = data.length
-                  bar.update(data.length)
-                  options.log('Finished reading file, sending first chunk of size %d', data.length)
-                  call.write({ chunk: { data } })
+                  lengthProgress = 0
+                  bar.update(0)
+                  options.log('Finished reading file, sending the first %d chunks', Math.min(WINDOW, callData.chunks.length))
+                  while (callData.inFlight < WINDOW && sendNextChunk()) {}
+                  if (callData.inFlight === 0) {
+                    throw new Error('Cannot upload an empty file')
+                  }
                 })
             }
             break
           case 'chunkAck':
             {
-              const data = callData.chunks.shift()
-              if (data) {
-                bar.update((lengthProgress += data.length))
-                options.log('Sending next chunk of size %d', data.length)
-                call.write({ chunk: { data } })
-              } else {
+              callData.inFlight--
+              if (sendNextChunk()) {
+                // Another chunk took the acknowledged one's place in the window.
+              } else if (callData.inFlight === 0) {
                 hash.digestInto(digest)
                 const footer = { hash: digest }
                 options.log('Sending footer: %o', footer)
