@@ -448,15 +448,21 @@ module.exports = class Schemas {
     return true
   }
 
+  // Reserves and returns the project's next build id. The UPDATE locks the
+  // project row, so concurrent callers are served one at a time and each gets
+  // its own id. GREATEST keeps the counter above any build that was uploaded
+  // with an id of its own choosing.
   async getNextBuildId (project) {
-    const result = await this.Build.findAll({
-      where: {
-        projectId: project.id
-      },
-      order: [['buildId', 'DESC']],
-      limit: 1
-    })
-    return result.length === 0 ? 1 : result[0].buildId + 1
+    const [rows] = await this.db.sequelize.query(
+      `UPDATE projects SET "nextBuildId" = GREATEST(
+         "nextBuildId",
+         COALESCE((SELECT MAX("buildId") FROM builds WHERE "projectId" = :id), 0) + 1
+       ) + 1
+       WHERE id = :id
+       RETURNING "nextBuildId" - 1 AS "buildId"`,
+      { replacements: { id: project.id } }
+    )
+    return rows[0].buildId
   }
 
   async getLastBuild (project) {
