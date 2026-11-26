@@ -189,18 +189,18 @@ export default {
         <div class="grid">
           <div
             v-for="token in tokens.asArray"
-            :key="token.hash"
+            :key="token.id"
             class="col-12 md:col-6 lg:col-3"
           >
             <div
-              v-if="!editTokenDescription || token.hash !== tokenBeingEdited"
-              :id="token.hash"
+              v-if="!editTokenDescription || token.id !== tokenBeingEdited"
+              :id="token.id"
               class="surface-card shadow-2 p-3 border-round cursor-pointer"
             >
               <Button
                 icon="pi pi-trash"
                 class="p-button-rounded p-button-text p-button-sm"
-                @click="deleteToken(token.hash)"
+                @click="deleteToken(token.id)"
               ></Button>
               <span
                 class="text-900 font-medium text-xl"
@@ -210,7 +210,7 @@ export default {
             </div>
             <div v-else>
               <InputText
-                :id="'input:' + token.hash"
+                :id="'input:' + token.id"
                 v-model="newTokenDescription"
                 @keydown.enter="doneEditingTokenDescription"
                 @blur="doneEditingTokenDescription"

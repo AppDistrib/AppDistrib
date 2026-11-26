@@ -35,18 +35,18 @@ async function twoTenants (h) {
   assert.strictEqual(aliceToken.status, 200, 'alice could mint a token')
   assert.strictEqual(bobToken.status, 200, 'bob could mint a token')
 
-  // The clear-text token is shown once and never stored; the hash is the row
-  // id, and it is what the UI passes back to setDescription and delete.
+  // The clear-text token is shown once and never stored. The UI passes the
+  // row's derived id back to setDescription and delete.
   const [bobRow] = await h.schemas.listTokens(bob.project)
   assert.ok(bobRow, "bob's token row exists")
 
-  return { alice, bob, bobHash: bobRow.hash, bobClearText: bobToken.body.token }
+  return { alice, bob, bobId: h.schemas.tokenId(bobRow), bobClearText: bobToken.body.token }
 }
 
 test('a token cannot be deleted from another organization', async (t) => {
   const h = await harness.start()
   t.after(() => h.stop())
-  const { alice, bob, bobHash } = await twoTenants(h)
+  const { alice, bob, bobId } = await twoTenants(h)
 
   // Alice is authenticated, is a real member of her own organization, and
   // supplies her own orgId and projectId - every check the handler performs
@@ -55,13 +55,13 @@ test('a token cannot be deleted from another organization', async (t) => {
   const res = await h.post('/api/v1/tokens/delete', {
     orgId: 'alice-org',
     projectId: 'alice-project',
-    token: bobHash
+    token: bobId
   })
 
   assert.strictEqual(
     res.status,
     404,
-    'deleting another org\'s token by hash must not succeed'
+    'deleting another org\'s token by id must not succeed'
   )
 
   const remaining = await h.schemas.listTokens(bob.project)
@@ -75,13 +75,13 @@ test('a token cannot be deleted from another organization', async (t) => {
 test('a token cannot be re-described from another organization', async (t) => {
   const h = await harness.start()
   t.after(() => h.stop())
-  const { alice, bob, bobHash } = await twoTenants(h)
+  const { alice, bob, bobId } = await twoTenants(h)
 
   h.becomeUser(alice.user)
   const res = await h.post('/api/v1/tokens/setDescription', {
     orgId: 'alice-org',
     projectId: 'alice-project',
-    token: bobHash,
+    token: bobId,
     description: 'pwned'
   })
 
@@ -101,14 +101,14 @@ test('a token cannot be re-described from another organization', async (t) => {
 test('the owning organization can still delete and re-describe its token', async (t) => {
   const h = await harness.start()
   t.after(() => h.stop())
-  const { bob, bobHash } = await twoTenants(h)
+  const { bob, bobId } = await twoTenants(h)
 
   h.becomeUser(bob.user)
 
   const described = await h.post('/api/v1/tokens/setDescription', {
     orgId: 'bob-org',
     projectId: 'bob-project',
-    token: bobHash,
+    token: bobId,
     description: 'renamed by its owner'
   })
   assert.strictEqual(described.status, 200, 'owner can re-describe')
@@ -118,7 +118,7 @@ test('the owning organization can still delete and re-describe its token', async
   const deleted = await h.post('/api/v1/tokens/delete', {
     orgId: 'bob-org',
     projectId: 'bob-project',
-    token: bobHash
+    token: bobId
   })
   assert.strictEqual(deleted.status, 200, 'owner can delete')
   assert.strictEqual((await h.schemas.listTokens(bob.project)).length, 0)
@@ -286,7 +286,7 @@ test('a member of one org cannot mint, list, re-describe or delete another org t
   // Unlike the cross-tenant tests above, alice names bob's org and project
   // outright here, so the membership check is the only thing in the way.
   const [bobRow] = await h.schemas.listTokens(bob.project)
-  const scope = { orgId: 'bob-org', projectId: 'bob-project', token: bobRow.hash }
+  const scope = { orgId: 'bob-org', projectId: 'bob-project', token: h.schemas.tokenId(bobRow) }
   const described = await h.post('/api/v1/tokens/setDescription', {
     ...scope,
     description: 'pwned'
@@ -323,11 +323,11 @@ test('an unauthenticated caller cannot mint, list, re-describe or delete tokens'
   assert.strictEqual(listed.status, 401)
   const described = await h.post('/api/v1/tokens/setDescription', {
     ...scope,
-    token: row.hash,
+    token: h.schemas.tokenId(row),
     description: 'anon'
   })
   assert.strictEqual(described.status, 401)
-  const deleted = await h.post('/api/v1/tokens/delete', { ...scope, token: row.hash })
+  const deleted = await h.post('/api/v1/tokens/delete', { ...scope, token: h.schemas.tokenId(row) })
   assert.strictEqual(deleted.status, 401)
 
   const rows = await h.schemas.listTokens(alice.project)
@@ -353,8 +353,8 @@ test('token routes reject missing ids, unknown projects and malformed input', as
 
   const routes = {
     create: { description: 'x' },
-    setDescription: { token: row.hash, description: 'x' },
-    delete: { token: row.hash }
+    setDescription: { token: h.schemas.tokenId(row), description: 'x' },
+    delete: { token: h.schemas.tokenId(row) }
   }
   for (const [route, extra] of Object.entries(routes)) {
     const url = `/api/v1/tokens/${route}`
@@ -383,7 +383,7 @@ test('token routes reject missing ids, unknown projects and malformed input', as
     const res = await h.post('/api/v1/tokens/setDescription', {
       orgId: 'alice-org',
       projectId: 'alice-project',
-      token: row.hash,
+      token: h.schemas.tokenId(row),
       description
     })
     assert.strictEqual(
@@ -405,4 +405,49 @@ test('token routes reject missing ids, unknown projects and malformed input', as
   // Nothing above minted, re-described or deleted anything.
   const rows = await h.schemas.listTokens(alice.project)
   assert.deepStrictEqual(rows.map((r) => r.description), ['original'])
+})
+
+test('tokens/list does not send the stored hash, and its id is what setDescription and delete take', async (t) => {
+  const h = await harness.start()
+  t.after(() => h.stop())
+  const alice = await h.makeOrgWithProject({
+    userName: 'alice',
+    orgId: 'alice-org',
+    projectId: 'alice-project'
+  })
+  h.becomeUser(alice.user)
+  const scope = { orgId: 'alice-org', projectId: 'alice-project' }
+  await h.post('/api/v1/tokens/create', { ...scope, description: 'first' })
+  await h.post('/api/v1/tokens/create', { ...scope, description: 'second' })
+  const stored = await h.schemas.listTokens(alice.project)
+  assert.strictEqual(stored.length, 2)
+
+  const listed = await h.get('/api/v1/tokens/list?orgId=alice-org&projectId=alice-project')
+  assert.strictEqual(listed.status, 200)
+  assert.strictEqual(listed.body.length, 2)
+  const text = JSON.stringify(listed.body)
+  for (const row of stored) {
+    assert.ok(!text.includes(row.hash), 'a stored hash went over the wire')
+  }
+  for (const row of listed.body) {
+    assert.strictEqual(row.hash, undefined)
+    assert.match(row.id, /^[0-9a-f]{32}$/)
+  }
+  assert.notStrictEqual(listed.body[0].id, listed.body[1].id)
+
+  // The stored hash is no longer a handle for anything.
+  const byHash = await h.post('/api/v1/tokens/delete', { ...scope, token: stored[0].hash })
+  assert.strictEqual(byHash.status, 404)
+
+  const first = listed.body.find((r) => r.description === 'first')
+  const described = await h.post('/api/v1/tokens/setDescription', {
+    ...scope,
+    token: first.id,
+    description: 'renamed'
+  })
+  assert.strictEqual(described.status, 200)
+  const deleted = await h.post('/api/v1/tokens/delete', { ...scope, token: first.id })
+  assert.strictEqual(deleted.status, 200)
+  const left = await h.schemas.listTokens(alice.project)
+  assert.deepStrictEqual(left.map((r) => r.description), ['second'])
 })
