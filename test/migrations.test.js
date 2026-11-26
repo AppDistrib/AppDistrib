@@ -135,7 +135,7 @@ test('upgrading a populated 00_initial.js database keeps every row', async (t) =
   // Each project's build-id counter starts one past its highest build.
   assert.deepStrictEqual(
     await rows(sequelize, 'SELECT id, "nextBuildId" FROM projects ORDER BY id'),
-    [{ id: 'org:a', nextBuildId: 351 }, { id: 'org:b', nextBuildId: 350 }]
+    [{ id: 'org:a', nextBuildId: '351' }, { id: 'org:b', nextBuildId: '350' }]
   )
   await assert.rejects(
     sequelize.query(`INSERT INTO builds (id, "buildId", keep, "projectId", "createdAt", "updatedAt")
