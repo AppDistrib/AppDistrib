@@ -26,8 +26,12 @@ exports.setRoutes = async (server) => {
   server.app.use(express.static(path.join(root, 'dist')))
   server.app.use('/storage', express.static(path.join(root, 'storage')))
   // A helper as we'll use it frequently throughout the code.
+  // The page names the current build's hashed bundles, so browsers have to
+  // revalidate it or they keep running the previous build after a deploy.
   function sendRoot (req, res) {
-    res.sendFile(path.join(root, 'dist', 'index.html'))
+    res.sendFile(path.join(root, 'dist', 'index.html'), {
+      headers: { 'Cache-Control': 'no-cache' }
+    })
   }
   // All these routes are basically sending the root index.html file. There's no
   // logic behind them, as the Vue.js application page will do the right thing
