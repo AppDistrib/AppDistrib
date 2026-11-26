@@ -27,8 +27,7 @@ module.exports = class Schemas {
         allowNull: false
       },
       avatarURL: {
-        type: DataTypes.STRING,
-        length: 2048,
+        type: DataTypes.STRING(2048),
         allowNull: true
       }
     })
@@ -43,8 +42,7 @@ module.exports = class Schemas {
         allowNull: false
       },
       avatarURL: {
-        type: DataTypes.STRING,
-        length: 2048,
+        type: DataTypes.STRING(2048),
         allowNull: true
       }
     })
