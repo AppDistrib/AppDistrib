@@ -258,21 +258,34 @@ class Server {
   }
 
   // When we cleanup old builds, we may leave empty directories
-  // behind. This walks the filesystem, and attempts removing
-  // some empty directories recursively. This currently
-  // doesn't follow the "some" part of its name, but we should
-  // improve it to avoid spending too much time here.
-  async deleteSomeEmptyFolders (dir) {
+  // behind. This walks the filesystem and removes every empty
+  // directory below `dir`, children first, so a parent emptied
+  // by the removal of its children goes in the same pass. `dir`
+  // itself is kept. This currently doesn't follow the "some"
+  // part of its name, but we should improve it to avoid spending
+  // too much time here.
+  async deleteSomeEmptyFolders (dir, isRoot = true) {
     const files = await fs.readdir(dir)
-    if (files.length === 0) {
-      await fs.rmdir(dir)
-    } else {
-      for (const file of files) {
-        const fullPath = path.join(dir, file)
-        if ((await fs.stat(fullPath)).isDirectory()) {
-          await this.deleteSomeEmptyFolders(fullPath)
-        }
+    let remaining = files.length
+    for (const file of files) {
+      const fullPath = path.join(dir, file)
+      if ((await fs.stat(fullPath)).isDirectory()) {
+        if (await this.deleteSomeEmptyFolders(fullPath, false)) remaining--
       }
+    }
+    if (remaining === 0 && !isRoot) {
+      await fs.rmdir(dir)
+      return true
+    }
+    return false
+  }
+
+  // Deletes a batch of assets that no build refers to any more, files first.
+  async sweepOrphanAssets () {
+    const assetsToDelete = await this.schemas.findSomeOrphanAssets()
+    for (const asset of assetsToDelete) {
+      await this.deleteAsset(Buffer.from(asset.id, 'hex'), asset.filename)
+      await asset.destroy()
     }
   }
 
@@ -289,13 +302,7 @@ class Server {
     await db.initialize()
     this.schemas = new Schemas(db, this)
 
-    cron.schedule('*/5 * * * *', async () => {
-      const assetsToDelete = await this.schemas.findSomeOrphanAssets()
-      for (const asset of assetsToDelete) {
-        await this.deleteAsset(Buffer.from(asset.id, 'hex'), asset.filename)
-        await asset.destroy()
-      }
-    })
+    cron.schedule('*/5 * * * *', () => this.sweepOrphanAssets())
 
     cron.schedule('42 3 * * *', async () => {
       await this.deleteSomeEmptyFolders(this.config.storage.path)
