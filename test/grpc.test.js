@@ -431,3 +431,15 @@ test('ids keep climbing past a build uploaded with an explicit id', async (t) =>
   assert.strictEqual(await nextBuildId(g, meta), '51')
   assert.strictEqual(await nextBuildId(g, meta), '52')
 })
+
+// buildId is an INTEGER column and the id is the client's to choose, so the
+// highest valid id must still be reservable after a build just below it.
+test('the counter reaches the largest build id without overflowing', async (t) => {
+  const { g, meta } = await setup(t)
+  const result = await cliUpload(g, meta, {
+    header: { filename: 'high.zip', buildId: { id: '2147483646' } },
+    data: Buffer.from('high')
+  })
+  assert.strictEqual(result.status.code, grpc.status.OK, result.status.details)
+  assert.strictEqual(await nextBuildId(g, meta), '2147483647')
+})

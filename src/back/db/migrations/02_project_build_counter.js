@@ -14,12 +14,12 @@ module.exports = {
       await query.addColumn(
         'projects',
         'nextBuildId',
-        { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+        { type: DataTypes.BIGINT, allowNull: false, defaultValue: 1 },
         { transaction }
       )
       await sequelize.query(
         `UPDATE projects SET "nextBuildId" =
-           COALESCE((SELECT MAX("buildId") FROM builds WHERE "projectId" = projects.id), 0) + 1`,
+           COALESCE((SELECT MAX("buildId")::bigint FROM builds WHERE "projectId" = projects.id), 0) + 1`,
         { transaction }
       )
     })

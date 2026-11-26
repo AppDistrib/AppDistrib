@@ -456,13 +456,14 @@ module.exports = class Schemas {
     const [rows] = await this.db.sequelize.query(
       `UPDATE projects SET "nextBuildId" = GREATEST(
          "nextBuildId",
-         COALESCE((SELECT MAX("buildId") FROM builds WHERE "projectId" = :id), 0) + 1
+         COALESCE((SELECT MAX("buildId")::bigint FROM builds WHERE "projectId" = :id), 0) + 1
        ) + 1
        WHERE id = :id
        RETURNING "nextBuildId" - 1 AS "buildId"`,
       { replacements: { id: project.id } }
     )
-    return rows[0].buildId
+    // BIGINT comes back from pg as a string.
+    return Number(rows[0].buildId)
   }
 
   async getLastBuild (project) {
