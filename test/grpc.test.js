@@ -390,3 +390,44 @@ test('a pipelined upload behind a refused header stores nothing', async (t) => {
   assert.ok(seen.at(-1)?.startsWith(`error ${grpc.status.INVALID_ARGUMENT}`), `responses: ${seen.join(', ')}`)
   assert.strictEqual(await countAssets(), 1, 'no asset was stored for the refused upload')
 })
+
+function nextBuildId (g, meta) {
+  return new Promise((resolve, reject) =>
+    g.client.GetNextBuildId({}, g.metadata(meta), (err, res) => (err ? reject(err) : resolve(res.id)))
+  )
+}
+
+// CI asks for an id, bakes it into the build's manifest, and uploads with it
+// later, so two runs on one project that ask at the same time must not be
+// handed the same id.
+test('concurrent GetNextBuildId calls get distinct ids', async (t) => {
+  const { g, meta } = await setup(t)
+  const ids = await Promise.all(Array.from({ length: 10 }, () => nextBuildId(g, meta)))
+  assert.strictEqual(new Set(ids).size, 10, `ids handed out: ${ids.join(',')}`)
+})
+
+test('two runs that asked for ids at the same time both publish', async (t) => {
+  const { h, g, meta, project } = await setup(t)
+  const [a, b] = await Promise.all([nextBuildId(g, meta), nextBuildId(g, meta)])
+  for (const [id, name] of [[a, 'a.zip'], [b, 'b.zip']]) {
+    const result = await cliUpload(g, meta, {
+      header: { filename: name, buildId: { id } },
+      data: Buffer.from(`content of ${name}`)
+    })
+    assert.strictEqual(result.status.code, grpc.status.OK, `${name} as ${id}: ${result.status.details}`)
+    assert.strictEqual(result.buildId, id)
+  }
+  const builds = await h.schemas.listBuilds(project)
+  assert.deepStrictEqual(builds.map((b) => String(b.buildId)).sort(), [a, b].sort())
+})
+
+test('ids keep climbing past a build uploaded with an explicit id', async (t) => {
+  const { g, meta } = await setup(t)
+  const result = await cliUpload(g, meta, {
+    header: { filename: 'pinned.zip', buildId: { id: '50' } },
+    data: Buffer.from('pinned')
+  })
+  assert.strictEqual(result.status.code, grpc.status.OK, result.status.details)
+  assert.strictEqual(await nextBuildId(g, meta), '51')
+  assert.strictEqual(await nextBuildId(g, meta), '52')
+})

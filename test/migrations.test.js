@@ -110,7 +110,7 @@ async function seed (sequelize, count) {
 test('a fresh database ends up with the constraints and indexes', async (t) => {
   const { sequelize, umzug } = await connect(t)
   await umzug.up()
-  assert.deepStrictEqual(await applied(umzug), ['00_initial.js', '01_constraints_and_indexes.js'])
+  assert.deepStrictEqual(await applied(umzug), ['00_initial.js', '01_constraints_and_indexes.js', '02_project_build_counter.js'])
   await assertMigrated(sequelize)
 })
 
@@ -127,11 +127,16 @@ test('upgrading a populated 00_initial.js database keeps every row', async (t) =
 
   await umzug.up()
 
-  assert.deepStrictEqual(await applied(umzug), ['00_initial.js', '01_constraints_and_indexes.js'])
+  assert.deepStrictEqual(await applied(umzug), ['00_initial.js', '01_constraints_and_indexes.js', '02_project_build_counter.js'])
   await assertMigrated(sequelize)
   const after = await rows(sequelize, 'SELECT id, "buildId", "projectId", "assetId" FROM builds ORDER BY id')
   assert.strictEqual(after.length, 350)
   assert.deepStrictEqual(after, before)
+  // Each project's build-id counter starts one past its highest build.
+  assert.deepStrictEqual(
+    await rows(sequelize, 'SELECT id, "nextBuildId" FROM projects ORDER BY id'),
+    [{ id: 'org:a', nextBuildId: 351 }, { id: 'org:b', nextBuildId: 350 }]
+  )
   await assert.rejects(
     sequelize.query(`INSERT INTO builds (id, "buildId", keep, "projectId", "createdAt", "updatedAt")
       VALUES ('org:a:999', 999, false, 'org:a', now(), now())`),
