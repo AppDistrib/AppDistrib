@@ -23,7 +23,7 @@ export const useTokensStore = defineStore('tokens', {
         })) || []
       this.asArray = tokens
       this.asMap = tokens.reduce((acc, token) => {
-        acc[token.hash] = token
+        acc[token.id] = token
         return acc
       }, {})
     },

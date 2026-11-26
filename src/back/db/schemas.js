@@ -379,13 +379,30 @@ module.exports = class Schemas {
   // the project here rather than filtering at the call site means a caller
   // cannot forget to, which is how a token from another project used to be
   // reachable by hash alone.
-  async findToken ({ hash, project }) {
-    const result = await this.Token.findAll({
-      where: {
-        hash,
-        projectId: project.id
-      }
-    })
+  // The handle the web client uses for a token. The stored hash is what a
+  // presented token is checked against, so it never leaves the server; this
+  // is derived from it and cannot be turned back into it.
+  tokenId (token) {
+    return Buffer.from(sha3_256('token-id|' + token.hash))
+      .toString('hex')
+      .slice(0, 32)
+  }
+
+  // What tokens/list sends for each token.
+  publicToken (token) {
+    return {
+      id: this.tokenId(token),
+      description: token.description,
+      expiration: token.expiration,
+      createdAt: token.createdAt,
+      updatedAt: token.updatedAt
+    }
+  }
+
+  async findToken ({ id, project }) {
+    const result = (await this.listTokens(project)).filter(
+      (token) => this.tokenId(token) === id
+    )
     return result.length === 1 ? result[0] : false
   }
 

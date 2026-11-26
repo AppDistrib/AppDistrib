@@ -32,7 +32,7 @@ exports.setRoutes = async (server) => {
           return
         }
         const tokens = await server.schemas.listTokens(project)
-        res.json(tokens)
+        res.json(tokens.map((token) => server.schemas.publicToken(token)))
       } catch (err) {
         res.status(500).json({ error: err.toString() })
       }
@@ -121,7 +121,7 @@ exports.setRoutes = async (server) => {
           return
         }
         const token = await server.schemas.findToken({
-          hash: req.body.token,
+          id: req.body.token,
           project
         })
         if (!token) {
@@ -165,7 +165,7 @@ exports.setRoutes = async (server) => {
           return
         }
         const token = await server.schemas.findToken({
-          hash: req.body.token,
+          id: req.body.token,
           project
         })
         if (!token) {
