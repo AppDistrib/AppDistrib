@@ -15,6 +15,7 @@ export default {
     newName: '',
     editTokenDescription: false,
     newTokenDescription: '',
+    editedTokenDescription: '',
     tokenBeingEdited: '',
     orgs: useOrganizationsStore(),
     projects: useProjectsStore(),
@@ -53,21 +54,21 @@ export default {
         name: this.newName
       })
     },
-    startEditingTokenDescription(event) {
-      this.tokenBeingEdited = event.currentTarget.id
-      const inputId = 'input:' + event.currentTarget.id
+    startEditingTokenDescription(tokenId) {
+      this.tokenBeingEdited = tokenId
+      const inputId = 'input:' + tokenId
       this.editTokenDescription = true
-      this.newTokenDescription =
-        this.tokens.asMap[event.currentTarget.id].description
+      this.editedTokenDescription = this.tokens.asMap[tokenId].description
       this.$nextTick(() => {
         document.getElementById(inputId).select()
       })
     },
     async doneEditingTokenDescription(event) {
+      if (!this.editTokenDescription) return
       this.editTokenDescription = false
       await this.tokens.setDescription({
         token: this.tokenBeingEdited,
-        description: this.newTokenDescription
+        description: this.editedTokenDescription
       })
     },
     async deleteToken(token) {
@@ -204,14 +205,14 @@ export default {
               ></Button>
               <span
                 class="text-900 font-medium text-xl"
-                @click="startEditingTokenDescription"
+                @click="startEditingTokenDescription(token.id)"
                 >{{ token.description }}</span
               >
             </div>
             <div v-else>
               <InputText
                 :id="'input:' + token.id"
-                v-model="newTokenDescription"
+                v-model="editedTokenDescription"
                 @keydown.enter="doneEditingTokenDescription"
                 @blur="doneEditingTokenDescription"
               />
