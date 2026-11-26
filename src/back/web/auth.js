@@ -81,7 +81,12 @@ exports.setRoutes = async (server) => {
     // auth provider to log in.
     server.app.get(`/api/v1/auth/${provider.urlFragment}/login`, (req, res, next) => {
       try {
-        if (req.isAuthenticated()) res.redirect('/render/profile')
+        // Already signed in: send them home rather than through the provider
+        // again.
+        if (req.isAuthenticated()) {
+          res.redirect('/')
+          return
+        }
         passport.authenticate(provider.create)(req, res, next)
       } catch (err) {
         res.status(500).json({ error: err.toString() })
